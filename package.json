@@ -1,0 +1,78 @@
+{
+  "name": "netsmith",
+  "displayName": "NetSmith",
+  "description": "Visual Neural Network Designer for VS Code",
+  "version": "0.1.0",
+  "publisher": "netsmith",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Visualization",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:netsmith.newModel",
+    "onCommand:netsmith.openProject",
+    "onCommand:netsmith.runModel",
+    "onCommand:netsmith.stopTraining"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "netsmith.newModel",
+        "title": "NetSmith: New Model",
+        "icon": "$(add)"
+      },
+      {
+        "command": "netsmith.openProject",
+        "title": "NetSmith: Open Project",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "netsmith.runModel",
+        "title": "NetSmith: Run Model",
+        "icon": "$(play)"
+      },
+      {
+        "command": "netsmith.stopTraining",
+        "title": "NetSmith: Stop Training",
+        "icon": "$(debug-stop)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "netsmith",
+          "title": "NetSmith",
+          "icon": "media/icon.svg"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "npm run build:extension && npm run build:webview",
+    "build:extension": "tsc -p ./",
+    "build:webview": "cd webview && npm run build",
+    "watch": "tsc -watch -p ./",
+    "watch:webview": "cd webview && npm run dev",
+    "dev": "concurrently \"npm run watch\" \"npm run watch:webview\"",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.x",
+    "@typescript-eslint/parser": "^6.x",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.x",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}
