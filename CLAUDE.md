@@ -94,6 +94,52 @@ useEffect(() => {
 - Always call `syncToStore()` before operations that need store data (like running training)
 - React Flow zoom/pan state is independent - use `defaultViewport` to set initial zoom (e.g., `zoom: 0.8`)
 - Avoid `fitView` prop as it causes unwanted zoom changes when nodes are added
+- Default panel widths are 200px each (can be resized 50px-600px)
+
+### Auto-Connect Feature
+
+When clicking a layer in the palette, it automatically connects to the last layer in the network (the one with no outgoing edges). This is implemented in `store.ts` `addNode()` action:
+
+```typescript
+// Find nodes without outgoing edges
+const outgoingEdges = new Set(state.edges.map(e => e.source));
+const nodesWithoutOutgoing = state.nodes.filter(n => !outgoingEdges.has(n.id));
+
+// If exactly one exists, auto-connect to new node
+if (nodesWithoutOutgoing.length === 1) {
+  const lastNode = nodesWithoutOutgoing[0];
+  newEdges.push({
+    id: `${lastNode.id}-${node.id}`,
+    source: lastNode.id,
+    target: node.id,
+  });
+}
+```
+
+### Node Deletion Sync Pattern
+
+Both the delete button in PropertiesPanel and the Delete key work by updating both React Flow and store states:
+
+```typescript
+// PropertiesPanel delete button
+const handleDelete = () => {
+  deleteNode(id);      // Update store (also clears selectedNode)
+  onDeleteNode(id);    // Update React Flow
+};
+
+// React Flow Delete key handling (in App.tsx)
+const onNodesChange = useCallback((changes: any) => {
+  onNodesChangeInternal(changes);
+  const removedNodes = changes.filter((change: any) => change.type === 'remove');
+  if (removedNodes.length > 0) {
+    removedNodes.forEach((change: any) => {
+      deleteNode(change.id);  // Sync deletion to store
+    });
+  }
+}, [onNodesChangeInternal, deleteNode]);
+```
+
+Key: Edge syncing only happens when edge count changes to prevent "undo" behavior where deletions are restored.
 
 ### Project File Structure
 
@@ -130,7 +176,16 @@ useEffect(() => {
 
 ### Python Runner (`src/python/runner.py`)
 - `DynamicModel` class builds PyTorch `nn.Module` from JSON
-- Uses `LazyLinear` and `LazyConv2d` for automatic input shape inference
+- Uses `LazyLinear`, `LazyConv2d`, and `LazyBatchNorm2d` for automatic input shape inference
+- **CRITICAL**: Lazy modules must be initialized with a dummy forward pass before counting parameters:
+  ```python
+  # Get input shape from Input layer and create dummy tensor
+  dummy_input = torch.randn(1, channels, height, width).to(device)
+  with torch.no_grad():
+      _ = model(dummy_input)  # Initialize lazy modules
+  # Now safe to count parameters
+  num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+  ```
 - **Validates model architecture** before training:
   - Checks for missing Input/Output layers
   - Validates model has trainable parameters
@@ -150,8 +205,10 @@ useEffect(() => {
 - Stores `showTrainingConfig` to control training panel expansion/collapse across the app
 
 ### Layer Components (`webview/src/components/`)
-- **LayerPalette**: Drag-and-drop layer creation
+- **LayerPalette**: Click to add layers (auto-connects to last layer in network)
 - **PropertiesPanel**: Layer configuration (calls both `updateNode` in store AND `onUpdateNode` callback for React Flow)
+  - Delete button updates both store and React Flow states
+  - Must accept `onDeleteNode` callback from parent
 - **TrainingPanel**: Hyperparameter configuration and run controls
   - Auto-scans workspace for datasets on load
   - Shows dropdown of available datasets (relative paths)
@@ -220,17 +277,17 @@ Maximum: 600px
 
 ## Important Implementation Details
 
-### Edge Arrows
-Use `MarkerType.ArrowClosed` from React Flow:
+### React Flow Configuration
 ```typescript
+// Hide attribution link
+proOptions={{ hideAttribution: true }}
+
+// Edge arrows
 const defaultEdgeOptions = {
   markerEnd: { type: MarkerType.ArrowClosed },
 };
-```
 
-### Auto-Layout
-Uses Dagre graph layout library with top-to-bottom orientation:
-```typescript
+// Auto-Layout using Dagre (top-to-bottom)
 dagreGraph.setGraph({ rankdir: 'TB', nodesep: 100, ranksep: 150 });
 ```
 
