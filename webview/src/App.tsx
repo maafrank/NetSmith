@@ -108,18 +108,56 @@ function App() {
           // Block was just expanded - add internal nodes and edges
           const blockPosition = blockNode.position;
 
-          // Position internal nodes relative to block node
+          // Calculate bounds for the internal nodes
+          const internalNodeCount = node.data.params.internalNodes.length;
+          const nodeSpacing = 120;
+          const containerPadding = 40;
+          const nodeWidth = 200;
+
+          // Position internal nodes in a vertical layout centered relative to block
           const positionedInternalNodes = node.data.params.internalNodes.map(
-            (internalNode: any) => ({
+            (internalNode: any, index: number) => ({
               ...internalNode,
               position: {
-                x: blockPosition.x + (internalNode.position?.x || 0),
-                y: blockPosition.y + (internalNode.position?.y || 0) + 150, // Offset below block
+                x: blockPosition.x,
+                y: blockPosition.y + 120 + (index * nodeSpacing), // Start below block with spacing
               },
+              style: {
+                ...internalNode.style,
+                // Add visual indicator that these are internal to a block
+                boxShadow: '0 0 0 2px rgba(6, 182, 212, 0.3)',
+              }
             })
           );
 
-          updatedNodes = [...updatedNodes, ...positionedInternalNodes];
+          // Add a background container node for visual grouping
+          const containerHeight = (internalNodeCount * nodeSpacing) + containerPadding * 2 - 20;
+          const containerNode = {
+            id: `${node.id}_container`,
+            type: 'default',
+            position: {
+              x: blockPosition.x - containerPadding,
+              y: blockPosition.y + 100,
+            },
+            data: {
+              label: '',
+              layerType: 'BlockContainer' as any,
+              params: {},
+            },
+            style: {
+              width: nodeWidth + containerPadding * 2,
+              height: containerHeight,
+              backgroundColor: 'rgba(6, 182, 212, 0.08)',
+              border: '2px dashed rgba(6, 182, 212, 0.3)',
+              borderRadius: '12px',
+              zIndex: -1,
+              pointerEvents: 'none',
+            },
+            draggable: false,
+            selectable: false,
+          };
+
+          updatedNodes = [...updatedNodes, containerNode, ...positionedInternalNodes];
 
           // Add internal edges
           if (node.data.params.internalEdges) {
@@ -171,8 +209,10 @@ function App() {
 
           hasChanges = true;
         } else if (!isExpanded && hasInternalNodes) {
-          // Block was just collapsed - remove internal nodes and edges
-          updatedNodes = updatedNodes.filter((n) => !internalNodeIds.has(n.id));
+          // Block was just collapsed - remove internal nodes, container, and edges
+          updatedNodes = updatedNodes.filter(
+            (n) => !internalNodeIds.has(n.id) && n.id !== `${node.id}_container`
+          );
 
           // Remove internal edges and skip connection edges
           updatedEdges = updatedEdges.filter(
