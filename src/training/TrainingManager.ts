@@ -21,6 +21,7 @@ export class TrainingManager {
         onError: (error: string) => void
     ): Promise<void> {
         this.metricsCallback = onMetrics;
+        let stderrBuffer = '';
 
         // Save architecture and config to run directory
         await fs.writeFile(
@@ -62,7 +63,9 @@ export class TrainingManager {
 
         // Handle stderr
         this.currentProcess.stderr?.on('data', (data) => {
-            console.error('Training error:', data.toString());
+            const errorText = data.toString();
+            stderrBuffer += errorText;
+            console.error('Training error:', errorText);
         });
 
         // Handle completion
@@ -70,7 +73,9 @@ export class TrainingManager {
             if (code === 0) {
                 onComplete();
             } else {
-                onError(`Training process exited with code ${code}`);
+                // Send the captured stderr as the error message
+                const errorMessage = stderrBuffer.trim() || `Training process exited with code ${code}`;
+                onError(errorMessage);
             }
             this.currentProcess = null;
         });

@@ -22,7 +22,7 @@ import MetricsPanel from './components/MetricsPanel';
 import { nodeTypes } from './components/nodes';
 
 function App() {
-  const { nodes, edges, setNodes, setEdges, setSelectedNode, addTrainingMetrics, setIsTraining, setTrainingConfig } = useStore();
+  const { nodes, edges, setNodes, setEdges, setSelectedNode, addTrainingMetrics, setIsTraining, setTrainingConfig, setTrainingError } = useStore();
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState([]);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState([]);
 
@@ -135,6 +135,7 @@ function App() {
 
         case 'trainingError':
           setIsTraining(false);
+          setTrainingError(message.error);
           console.error('Training error:', message.error);
           break;
 
@@ -151,7 +152,7 @@ function App() {
     vscode.postMessage({ type: 'ready' });
 
     return () => window.removeEventListener('message', handleMessage);
-  }, [addTrainingMetrics, setIsTraining, setTrainingConfig]);
+  }, [addTrainingMetrics, setIsTraining, setTrainingConfig, setTrainingError]);
 
   // Handle left panel resize
   const handleLeftMouseDown = useCallback(() => {

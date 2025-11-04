@@ -80,7 +80,8 @@ export class ModelBuilderPanel {
 
         switch (message.type) {
             case 'ready':
-                // Webview is ready, send initial data if needed
+                // Webview is ready, scan for datasets
+                await this._scanForDatasets(workspaceFolder.uri);
                 break;
 
             case 'saveModel':
@@ -113,14 +114,58 @@ export class ModelBuilderPanel {
                 console.log('Received pickDatasetFile message');
                 await this._pickDatasetFile();
                 break;
+
+            case 'scanForDatasets':
+                await this._scanForDatasets(workspaceFolder.uri);
+                break;
+        }
+    }
+
+    private async _scanForDatasets(workspaceUri: vscode.Uri) {
+        try {
+            console.log('=== SCANNING FOR DATASETS ===');
+            console.log('Workspace URI:', workspaceUri.fsPath);
+
+            // Find dataset files in workspace
+            const patterns = ['**/*.npz', '**/*.pt', '**/*.pth', '**/*.h5', '**/*.hdf5'];
+            const datasets: string[] = [];
+
+            for (const pattern of patterns) {
+                console.log('Searching pattern:', pattern);
+                // Use null as exclude pattern to search everything (respects .gitignore and files.exclude)
+                const files = await vscode.workspace.findFiles(pattern, null, 100);
+                console.log(`Found ${files.length} files for pattern ${pattern}`);
+                for (const file of files) {
+                    // Convert to relative path from workspace root
+                    const relativePath = vscode.workspace.asRelativePath(file);
+                    datasets.push(relativePath);
+                }
+            }
+
+            console.log('Total datasets found:', datasets.length);
+            console.log('Dataset paths:', datasets);
+
+            this._sendMessage({
+                type: 'availableDatasets',
+                datasets
+            } as any);
+        } catch (error) {
+            console.error('Error scanning for datasets:', error);
+            this._sendMessage({
+                type: 'availableDatasets',
+                datasets: []
+            } as any);
         }
     }
 
     private async _pickDatasetFile() {
         console.log('Opening file picker dialog...');
+
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         const options: vscode.OpenDialogOptions = {
             canSelectMany: false,
             openLabel: 'Select Dataset',
+            defaultUri: workspaceFolder?.uri,
             filters: {
                 'Data Files': ['npz', 'pt', 'pth', 'h5', 'hdf5'],
                 'All Files': ['*']
@@ -130,10 +175,15 @@ export class ModelBuilderPanel {
         const fileUri = await vscode.window.showOpenDialog(options);
         console.log('File picker result:', fileUri);
         if (fileUri && fileUri[0]) {
-            console.log('Sending dataset path to webview:', fileUri[0].fsPath);
+            // Convert to relative path if within workspace
+            const relativePath = workspaceFolder
+                ? vscode.workspace.asRelativePath(fileUri[0])
+                : fileUri[0].fsPath;
+
+            console.log('Sending dataset path to webview:', relativePath);
             this._sendMessage({
                 type: 'datasetPathSelected',
-                path: fileUri[0].fsPath
+                path: relativePath
             } as any);
         } else {
             console.log('No file selected');

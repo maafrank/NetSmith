@@ -56,10 +56,15 @@ WebView (React) <--postMessage--> ModelBuilderPanel <--> TrainingManager
 ```
 
 **Key message types:**
+- `ready` (webview → extension): Webview loaded, triggers dataset scan
 - `runModel` (webview → extension): Trigger training with architecture + config
-- `trainingMetrics` (extension → webview): Stream batch/epoch metrics
+- `saveModel` (webview → extension): Save model with optional name
+- `trainingMetrics` (extension → webview): Stream epoch metrics
+- `trainingError` (extension → webview): Send detailed error message
 - `pickDatasetFile` (webview → extension): Open file picker dialog
 - `datasetPathSelected` (extension → webview): Return selected file path
+- `scanForDatasets` (webview → extension): Request workspace scan
+- `availableDatasets` (extension → webview): Send list of found datasets
 
 ### State Management Critical Pattern
 
@@ -104,33 +109,48 @@ useEffect(() => {
 - Singleton webview panel manager
 - Handles all message passing between extension and React UI
 - Coordinates ProjectManager and TrainingManager
-- Implements file picker for dataset selection
+- Implements file picker for dataset selection (opens in workspace root by default)
+- Auto-scans workspace for dataset files on webview ready
+- Returns relative paths from workspace root for better portability
 
 ### TrainingManager (`src/training/TrainingManager.ts`)
 - Spawns Python subprocess with `runner.py`
 - Parses `METRICS:{json}` from stdout for real-time updates
+- Captures stderr in a buffer to provide detailed error messages on failure
 - Integrates with Python extension API to get active interpreter
 - Implements topological sort for layer ordering
 
 ### Python Runner (`src/python/runner.py`)
 - `DynamicModel` class builds PyTorch `nn.Module` from JSON
 - Uses `LazyLinear` and `LazyConv2d` for automatic input shape inference
+- **Validates model architecture** before training:
+  - Checks for missing Input/Output layers
+  - Validates model has trainable parameters
+  - Provides clear, user-friendly error messages with suggestions
 - `load_dataset()` supports NPZ format with:
   - Pre-split data (`X_train`, `y_train`, `X_test`, `y_test`)
   - Auto-normalization (0-255 → 0-1)
   - Channel dimension handling (HWC → CHW for PyTorch)
   - Automatic splitting if single dataset provided
-- Emits metrics every 10 batches during training
+- Prints batch progress every 10 batches (not emitted as metrics)
+- Only emits epoch-level metrics to keep graph clean
 
 ### Zustand Store (`webview/src/store.ts`)
-- Manages application state (nodes, edges, training config, metrics)
+- Manages application state (nodes, edges, training config, metrics, errors)
 - **Important**: `updateNode` must update both `nodes` array AND `selectedNode` to keep PropertiesPanel in sync
+- Stores `trainingError` to display detailed error messages in UI
 
 ### Layer Components (`webview/src/components/`)
 - **LayerPalette**: Drag-and-drop layer creation
 - **PropertiesPanel**: Layer configuration (calls both `updateNode` in store AND `onUpdateNode` callback for React Flow)
 - **TrainingPanel**: Hyperparameter configuration and run controls
+  - Auto-scans workspace for datasets on load
+  - Shows dropdown of available datasets (relative paths)
+  - Includes file picker button for manual selection
+  - Prompts for model name on save (with sanitization)
 - **MetricsPanel**: Real-time training visualization with batch progress and minimize toggle
+  - Displays detailed error messages in red banner when training fails
+  - Shows full Python traceback in scrollable code block
 
 ## Type Definitions
 
@@ -198,11 +218,16 @@ dagreGraph.setGraph({ rankdir: 'TB', nodesep: 100, ranksep: 150 });
 ```
 
 ### Batch Progress Display
-Python emits batch-level metrics every 10 batches:
+Python prints batch progress to console but only emits epoch-level metrics:
 ```python
+# Print to console (not emitted)
 if (batch_idx + 1) % 10 == 0:
-    emit_metrics(epoch, loss, metrics=..., batch=batch_idx+1, total_batches=len(train_loader))
+    print(f"  Batch [{batch_idx + 1}/{total_batches}] - Loss: {batch_loss:.4f}")
+
+# Only emit at end of epoch
+emit_metrics(epoch, avg_train_loss, avg_val_loss, metrics_dict)
 ```
+This keeps the metrics graph clean with one point per epoch.
 
 ### Input Validation
 All numeric inputs in `PropertiesPanel.tsx` must validate before updating:
@@ -213,6 +238,26 @@ if (!isNaN(value) && value > 0) {
 }
 ```
 This prevents NaN from appearing in the UI when backspacing.
+
+### Error Handling Pattern
+Training errors flow from Python → Extension → WebView:
+1. **Python validation** (`runner.py`): Validates architecture before training starts
+   - Missing Input/Output layers
+   - No trainable parameters
+   - Invalid layer configurations
+2. **Stderr capture** (`TrainingManager.ts`): Buffers all stderr output
+3. **Error display** (`MetricsPanel.tsx`): Shows errors in prominent red banner with full traceback
+
+Example Python validation:
+```python
+if num_params == 0:
+    raise ValueError(
+        "❌ Model has no trainable layers!\n\n"
+        "Your model only contains Input/Output layers.\n"
+        "Please add at least one trainable layer (Dense, Conv2D, etc.).\n\n"
+        "Example: Input → Dense → Output"
+    )
+```
 
 ## Python Requirements
 

@@ -185,14 +185,16 @@ export type MessageToWebview =
     | { type: 'trainingCompleted' }
     | { type: 'trainingError'; error: string }
     | { type: 'loadBlocks'; blocks: BlockDefinition[] }
-    | { type: 'datasetPathSelected'; path: string };
+    | { type: 'datasetPathSelected'; path: string }
+    | { type: 'availableDatasets'; datasets: string[] };
 
 export type MessageFromWebview =
-    | { type: 'saveModel'; data: ModelArchitecture }
+    | { type: 'saveModel'; data: ModelArchitecture; modelName?: string }
     | { type: 'runModel'; config: TrainingConfig; architecture: ModelArchitecture }
     | { type: 'stopTraining' }
     | { type: 'exportModel'; format: 'pytorch' | 'onnx' }
     | { type: 'saveBlock'; block: BlockDefinition }
     | { type: 'loadBlocks' }
     | { type: 'ready' }
-    | { type: 'pickDatasetFile' };
+    | { type: 'pickDatasetFile' }
+    | { type: 'scanForDatasets' };

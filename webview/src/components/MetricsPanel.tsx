@@ -3,10 +3,10 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { useStore } from '../store';
 
 export default function MetricsPanel() {
-  const { isTraining, trainingMetrics } = useStore();
+  const { isTraining, trainingMetrics, trainingError } = useStore();
   const [isMinimized, setIsMinimized] = useState(false);
 
-  if (!isTraining && trainingMetrics.length === 0) {
+  if (!isTraining && trainingMetrics.length === 0 && !trainingError) {
     return null;
   }
 
@@ -23,6 +23,20 @@ export default function MetricsPanel() {
           {isMinimized ? '▲' : '▼'}
         </button>
       </div>
+
+      {!isMinimized && trainingError && (
+        <div className="bg-red-900/30 border border-red-500 rounded-lg p-4 mb-4">
+          <div className="flex items-start gap-2">
+            <div className="text-red-500 text-xl">⚠️</div>
+            <div className="flex-1">
+              <div className="font-bold text-red-500 mb-2">Training Failed</div>
+              <pre className="text-sm text-red-300 whitespace-pre-wrap font-mono bg-red-900/20 p-2 rounded overflow-auto max-h-64">
+                {trainingError}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!isMinimized && currentMetrics && (
         <>

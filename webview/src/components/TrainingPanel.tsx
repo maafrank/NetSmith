@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { vscode } from '../vscode';
 import { OptimizerType, LossType, LayerNode, Edge } from '../types';
@@ -15,6 +15,18 @@ interface TrainingPanelProps {
 export default function TrainingPanel({ onBeforeRun, nodes, edges }: TrainingPanelProps) {
   const { isTraining, trainingConfig, setTrainingConfig, clearMetrics } = useStore();
   const [showConfig, setShowConfig] = useState(false);
+  const [availableDatasets, setAvailableDatasets] = useState<string[]>([]);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const message = event.data;
+      if (message.type === 'availableDatasets') {
+        setAvailableDatasets(message.datasets);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   const handleRunModel = () => {
     if (nodes.length === 0) {
@@ -61,7 +73,6 @@ export default function TrainingPanel({ onBeforeRun, nodes, edges }: TrainingPan
   };
 
   const handlePickDataset = () => {
-    console.log('Requesting file picker...');
     vscode.postMessage({ type: 'pickDatasetFile' });
   };
 
@@ -117,13 +128,28 @@ export default function TrainingPanel({ onBeforeRun, nodes, edges }: TrainingPan
                 Dataset Path
               </label>
               <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={trainingConfig.datasetPath}
-                  onChange={(e) => setTrainingConfig({ datasetPath: e.target.value })}
-                  placeholder="/path/to/dataset.npz"
-                  className="flex-1 px-2 py-1 text-sm bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
-                />
+                {availableDatasets.length > 0 ? (
+                  <select
+                    value={trainingConfig.datasetPath}
+                    onChange={(e) => setTrainingConfig({ datasetPath: e.target.value })}
+                    className="flex-1 px-2 py-1 text-sm bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="">Select dataset...</option>
+                    {availableDatasets.map((path) => (
+                      <option key={path} value={path}>
+                        {path}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={trainingConfig.datasetPath}
+                    onChange={(e) => setTrainingConfig({ datasetPath: e.target.value })}
+                    placeholder="data/mnist_decoded.npz"
+                    className="flex-1 px-2 py-1 text-sm bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
+                  />
+                )}
                 <button
                   onClick={handlePickDataset}
                   className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded"
@@ -132,9 +158,6 @@ export default function TrainingPanel({ onBeforeRun, nodes, edges }: TrainingPan
                   📁
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Supported: .npz (NumPy arrays), .pt (PyTorch), folders with images
-              </p>
             </div>
 
             <div>

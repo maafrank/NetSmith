@@ -94,11 +94,18 @@ export default function PropertiesPanel({ onUpdateNode }: PropertiesPanelProps) 
                   handleParamChange('inputShape', []);
                   return;
                 }
+                // Allow typing commas - only parse when all parts are valid
                 const parsed = value.split(',').map((v) => {
-                  const num = parseInt(v.trim());
-                  return isNaN(num) ? 0 : num;
-                }).filter(n => n > 0);
-                handleParamChange('inputShape', parsed);
+                  const trimmed = v.trim();
+                  if (trimmed === '') return null; // Allow empty parts while typing
+                  const num = parseInt(trimmed);
+                  return isNaN(num) ? null : num;
+                });
+
+                // Only update if all parts are valid numbers (no nulls)
+                if (parsed.every(n => n !== null && n > 0)) {
+                  handleParamChange('inputShape', parsed as number[]);
+                }
               }}
               placeholder="28,28,1"
               className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"

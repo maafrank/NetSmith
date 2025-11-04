@@ -31,6 +31,31 @@ class DynamicModel(nn.Module):
         nodes = self.architecture['nodes']
         edges = self.architecture['edges']
 
+        # Validate architecture has nodes
+        if not nodes or len(nodes) == 0:
+            raise ValueError(
+                "❌ Model has no layers!\n\n"
+                "Please add at least one Input layer and one Output layer to your model."
+            )
+
+        # Check for Input and Output layers
+        has_input = any(n['data']['layerType'] == 'Input' for n in nodes)
+        has_output = any(n['data']['layerType'] == 'Output' for n in nodes)
+
+        if not has_input:
+            raise ValueError(
+                "❌ Model is missing an Input layer!\n\n"
+                "Every model must start with an Input layer.\n"
+                "Add an Input layer from the Layer Palette on the left."
+            )
+
+        if not has_output:
+            raise ValueError(
+                "❌ Model is missing an Output layer!\n\n"
+                "Every model must end with an Output layer.\n"
+                "Add an Output layer from the Layer Palette on the left."
+            )
+
         # Sort nodes topologically
         sorted_nodes = self._topological_sort(nodes, edges)
 
@@ -338,6 +363,17 @@ def train(run_path):
 
     print("Model architecture:")
     print(model)
+
+    # Validate model has trainable layers
+    num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    if num_params == 0:
+        raise ValueError(
+            "❌ Model has no trainable layers!\n\n"
+            "Your model only contains Input/Output layers or other non-trainable layers.\n"
+            "Please add at least one trainable layer (Dense, Conv2D, etc.) between your Input and Output layers.\n\n"
+            "Example: Input → Dense → Output"
+        )
+    print(f"Total trainable parameters: {num_params:,}")
 
     # Load dataset
     dataset_path = config.get('datasetPath')
