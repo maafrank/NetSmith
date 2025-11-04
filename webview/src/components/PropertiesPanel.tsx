@@ -17,9 +17,10 @@ const activationOptions: ActivationType[] = [
 
 interface PropertiesPanelProps {
   onUpdateNode: (nodeId: string, newData: any) => void;
+  onDeleteNode: (nodeId: string) => void;
 }
 
-export default function PropertiesPanel({ onUpdateNode }: PropertiesPanelProps) {
+export default function PropertiesPanel({ onUpdateNode, onDeleteNode }: PropertiesPanelProps) {
   const { selectedNode, updateNode, deleteNode } = useStore();
 
   // Local state for all text inputs to allow free editing
@@ -92,7 +93,9 @@ export default function PropertiesPanel({ onUpdateNode }: PropertiesPanelProps) 
   };
 
   const handleDelete = () => {
+    // Delete from both store and React Flow
     deleteNode(id);
+    onDeleteNode(id);
   };
 
   return (

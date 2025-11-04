@@ -22,13 +22,43 @@ import MetricsPanel from './components/MetricsPanel';
 import { nodeTypes } from './components/nodes';
 
 function App() {
-  const { nodes, edges, setNodes, setEdges, setSelectedNode, addTrainingMetrics, setIsTraining, setTrainingConfig, setTrainingError, setShowTrainingConfig } = useStore();
-  const [rfNodes, setRfNodes, onNodesChange] = useNodesState([]);
-  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState([]);
+  const { nodes, edges, setNodes, setEdges, setSelectedNode, addTrainingMetrics, setIsTraining, setTrainingConfig, setTrainingError, setShowTrainingConfig, deleteNode } = useStore();
+  const [rfNodes, setRfNodes, onNodesChangeInternal] = useNodesState([]);
+  const [rfEdges, setRfEdges, onEdgesChangeInternal] = useEdgesState([]);
+
+  // Wrap onNodesChange to sync deletions back to store
+  const onNodesChange = useCallback((changes: any) => {
+    onNodesChangeInternal(changes);
+
+    // Check if any nodes were removed
+    const removedNodes = changes.filter((change: any) => change.type === 'remove');
+    if (removedNodes.length > 0) {
+      // Update store to match React Flow state
+      removedNodes.forEach((change: any) => {
+        deleteNode(change.id);
+      });
+    }
+  }, [onNodesChangeInternal, deleteNode]);
+
+  // Wrap onEdgesChange to sync back to store when edges are deleted
+  const onEdgesChange = useCallback((changes: any) => {
+    onEdgesChangeInternal(changes);
+
+    // Check if any edges were removed
+    const hasRemoval = changes.some((change: any) => change.type === 'remove');
+    if (hasRemoval) {
+      setTimeout(() => {
+        setRfEdges((currentEdges) => {
+          setEdges(currentEdges as any);
+          return currentEdges;
+        });
+      }, 0);
+    }
+  }, [onEdgesChangeInternal, setEdges, setRfEdges]);
 
   // Panel widths
-  const [leftPanelWidth, setLeftPanelWidth] = useState(256); // 16rem = 256px (w-64)
-  const [rightPanelWidth, setRightPanelWidth] = useState(320); // 20rem = 320px (w-80)
+  const [leftPanelWidth, setLeftPanelWidth] = useState(200); // 12.5rem = 200px
+  const [rightPanelWidth, setRightPanelWidth] = useState(200); // 12.5rem = 200px
   const [isResizingLeft, setIsResizingLeft] = useState(false);
   const [isResizingRight, setIsResizingRight] = useState(false);
 
@@ -44,10 +74,13 @@ function App() {
   }, [nodes.length, nodes, rfNodes, setRfNodes]);
 
   useEffect(() => {
-    if (edges.length !== rfEdges.length) {
+    // Only sync edges from store to React Flow when the count differs significantly
+    // This prevents the "undo" effect where React Flow deletions get overwritten
+    const edgeDiff = Math.abs(edges.length - rfEdges.length);
+    if (edgeDiff > 0) {
       setRfEdges(edges as any);
     }
-  }, [edges.length]);
+  }, [edges.length, edges, rfEdges.length, setRfEdges]);
 
   // Sync React Flow changes back to store (for saves/exports)
   const syncToStore = useCallback(() => {
@@ -63,6 +96,12 @@ function App() {
       )
     );
   }, [setRfNodes]);
+
+  // Delete a node from React Flow
+  const deleteNodeFromRF = useCallback((nodeId: string) => {
+    setRfNodes((nodes) => nodes.filter((node) => node.id !== nodeId));
+    setRfEdges((edges) => edges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+  }, [setRfNodes, setRfEdges]);
 
   // Auto-layout using Dagre
   const autoLayout = useCallback(() => {
@@ -102,9 +141,11 @@ function App() {
   // Handle connections
   const onConnect = useCallback(
     (params: Connection) => {
-      setRfEdges((eds) => addEdge({ ...params, markerEnd: { type: MarkerType.ArrowClosed } }, eds));
+      const newEdges = addEdge({ ...params, markerEnd: { type: MarkerType.ArrowClosed } }, rfEdges);
+      setRfEdges(newEdges);
+      setEdges(newEdges as any);
     },
-    [setRfEdges]
+    [setRfEdges, setEdges, rfEdges]
   );
 
   // Default edge options
@@ -274,7 +315,7 @@ function App() {
           defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
           minZoom={0.1}
           maxZoom={2}
-          attributionPosition="bottom-left"
+          proOptions={{ hideAttribution: true }}
         >
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
           <Controls />
@@ -310,7 +351,7 @@ function App() {
         style={{ width: `${rightPanelWidth}px` }}
         className="border-l border-gray-700 bg-gray-900 overflow-y-auto flex-shrink-0"
       >
-        <PropertiesPanel onUpdateNode={updateNodeData} />
+        <PropertiesPanel onUpdateNode={updateNodeData} onDeleteNode={deleteNodeFromRF} />
       </div>
     </div>
   );

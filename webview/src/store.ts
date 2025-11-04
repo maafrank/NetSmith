@@ -59,9 +59,32 @@ export const useStore = create<AppState>((set) => ({
   setSelectedNode: (node) => set({ selectedNode: node }),
 
   addNode: (node) =>
-    set((state) => ({
-      nodes: [...state.nodes, node],
-    })),
+    set((state) => {
+      const newNodes = [...state.nodes, node];
+
+      // Auto-connect to the last layer (node with no outgoing edges)
+      const newEdges = [...state.edges];
+      if (state.nodes.length > 0) {
+        // Find nodes that have no outgoing edges
+        const outgoingEdges = new Set(state.edges.map(e => e.source));
+        const nodesWithoutOutgoing = state.nodes.filter(n => !outgoingEdges.has(n.id));
+
+        // If there's exactly one node without outgoing edges, connect it to the new node
+        if (nodesWithoutOutgoing.length === 1) {
+          const lastNode = nodesWithoutOutgoing[0];
+          newEdges.push({
+            id: `${lastNode.id}-${node.id}`,
+            source: lastNode.id,
+            target: node.id,
+          });
+        }
+      }
+
+      return {
+        nodes: newNodes,
+        edges: newEdges,
+      };
+    }),
 
   updateNode: (id, data) =>
     set((state) => {
@@ -82,6 +105,7 @@ export const useStore = create<AppState>((set) => ({
     set((state) => ({
       nodes: state.nodes.filter((node) => node.id !== id),
       edges: state.edges.filter((edge) => edge.source !== id && edge.target !== id),
+      selectedNode: state.selectedNode?.id === id ? null : state.selectedNode,
     })),
 
   setTrainingConfig: (config) =>

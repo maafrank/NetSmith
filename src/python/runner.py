@@ -364,6 +364,28 @@ def train(run_path):
     print("Model architecture:")
     print(model)
 
+    # Initialize lazy modules with a dummy forward pass
+    # Get input shape from the Input layer
+    input_node = next((n for n in architecture['nodes'] if n['data']['layerType'] == 'Input'), None)
+    if input_node:
+        input_shape = input_node['data']['params'].get('inputShape', [28, 28, 1])
+        # Convert HWC to NCHW format for PyTorch (batch_size=1, channels, height, width)
+        if len(input_shape) == 3:
+            dummy_input = torch.randn(1, input_shape[2], input_shape[0], input_shape[1]).to(device)
+        elif len(input_shape) == 2:
+            dummy_input = torch.randn(1, input_shape[0], input_shape[1]).to(device)
+        elif len(input_shape) == 1:
+            dummy_input = torch.randn(1, input_shape[0]).to(device)
+        else:
+            dummy_input = torch.randn(1, 1, 28, 28).to(device)
+
+        # Initialize lazy modules
+        with torch.no_grad():
+            try:
+                _ = model(dummy_input)
+            except Exception as e:
+                print(f"Warning: Could not initialize model with dummy input: {e}")
+
     # Validate model has trainable layers
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     if num_params == 0:
