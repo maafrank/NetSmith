@@ -22,7 +22,7 @@ import MetricsPanel from './components/MetricsPanel';
 import { nodeTypes } from './components/nodes';
 
 function App() {
-  const { nodes, edges, setNodes, setEdges, setSelectedNode, addTrainingMetrics, setIsTraining, setTrainingConfig, setTrainingError, setShowTrainingConfig, deleteNode } = useStore();
+  const { nodes, edges, setNodes, setEdges, setSelectedNode, addTrainingMetrics, setIsTraining, setTrainingConfig, setTrainingError, setShowTrainingConfig, deleteNode, toggleBlockExpansion } = useStore();
   const [rfNodes, setRfNodes, onNodesChangeInternal] = useNodesState([]);
   const [rfEdges, setRfEdges, onEdgesChangeInternal] = useEdgesState([]);
 
@@ -81,6 +81,132 @@ function App() {
       setRfEdges(edges as any);
     }
   }, [edges.length, edges, rfEdges.length, setRfEdges]);
+
+  // Handle block expansion/collapse - add/remove internal nodes and edges
+  useEffect(() => {
+    let updatedNodes = [...rfNodes];
+    let updatedEdges = [...rfEdges];
+    let hasChanges = false;
+
+    // Process each node to check for block expansion changes
+    nodes.forEach((node) => {
+      if (node.data.layerType === 'Block' && node.data.params.internalNodes) {
+        const isExpanded = node.data.params.expanded;
+        const blockNode = rfNodes.find((n) => n.id === node.id);
+
+        if (!blockNode) return;
+
+        // Get internal node IDs for this block
+        const internalNodeIds = new Set(
+          node.data.params.internalNodes?.map((n: any) => n.id) || []
+        );
+
+        // Check if internal nodes are currently in rfNodes
+        const hasInternalNodes = rfNodes.some((n) => internalNodeIds.has(n.id));
+
+        if (isExpanded && !hasInternalNodes) {
+          // Block was just expanded - add internal nodes and edges
+          const blockPosition = blockNode.position;
+
+          // Position internal nodes relative to block node
+          const positionedInternalNodes = node.data.params.internalNodes.map(
+            (internalNode: any) => ({
+              ...internalNode,
+              position: {
+                x: blockPosition.x + (internalNode.position?.x || 0),
+                y: blockPosition.y + (internalNode.position?.y || 0) + 150, // Offset below block
+              },
+            })
+          );
+
+          updatedNodes = [...updatedNodes, ...positionedInternalNodes];
+
+          // Add internal edges
+          if (node.data.params.internalEdges) {
+            const internalEdgesWithMarkers = node.data.params.internalEdges.map(
+              (edge: any) => ({
+                ...edge,
+                markerEnd: { type: MarkerType.ArrowClosed },
+              })
+            );
+            updatedEdges = [...updatedEdges, ...internalEdgesWithMarkers];
+          }
+
+          // Add skip connection edge (from block input to Add node)
+          const addNode = node.data.params.internalNodes.find(
+            (n: any) => n.data.layerType === 'Add'
+          );
+          if (addNode) {
+            // Find edges connecting TO the block node
+            const edgesToBlock = rfEdges.filter((e) => e.target === node.id);
+            edgesToBlock.forEach((edgeToBlock) => {
+              // Create skip edge from the block's input source to the Add node
+              const skipEdge = {
+                id: `${node.id}_skip_${edgeToBlock.source}_${addNode.id}`,
+                source: edgeToBlock.source,
+                target: addNode.id,
+                markerEnd: { type: MarkerType.ArrowClosed },
+                style: { stroke: '#f59e0b', strokeWidth: 2, strokeDasharray: '5,5' }, // Dashed orange for skip
+              };
+              updatedEdges.push(skipEdge);
+            });
+
+            // Redirect edges TO block to point to first internal node (Conv)
+            const firstInternalNode = node.data.params.internalNodes[0];
+            updatedEdges = updatedEdges.map((edge) =>
+              edge.target === node.id
+                ? { ...edge, target: firstInternalNode.id }
+                : edge
+            );
+
+            // Redirect edges FROM block to come from last internal node (Add)
+            const lastInternalNode =
+              node.data.params.internalNodes[node.data.params.internalNodes.length - 1];
+            updatedEdges = updatedEdges.map((edge) =>
+              edge.source === node.id
+                ? { ...edge, source: lastInternalNode.id }
+                : edge
+            );
+          }
+
+          hasChanges = true;
+        } else if (!isExpanded && hasInternalNodes) {
+          // Block was just collapsed - remove internal nodes and edges
+          updatedNodes = updatedNodes.filter((n) => !internalNodeIds.has(n.id));
+
+          // Remove internal edges and skip connection edges
+          updatedEdges = updatedEdges.filter(
+            (edge) =>
+              !internalNodeIds.has(edge.source) &&
+              !internalNodeIds.has(edge.target) &&
+              !edge.id.includes(`${node.id}_skip_`)
+          );
+
+          // Restore edges to/from block node
+          const firstInternalNode = node.data.params.internalNodes[0];
+          const lastInternalNode =
+            node.data.params.internalNodes[node.data.params.internalNodes.length - 1];
+
+          updatedEdges = updatedEdges.map((edge) => {
+            if (edge.target === firstInternalNode.id) {
+              return { ...edge, target: node.id };
+            }
+            if (edge.source === lastInternalNode.id) {
+              return { ...edge, source: node.id };
+            }
+            return edge;
+          });
+
+          hasChanges = true;
+        }
+      }
+    });
+
+    if (hasChanges) {
+      setRfNodes(updatedNodes);
+      setRfEdges(updatedEdges);
+    }
+  }, [nodes, rfNodes, rfEdges, setRfNodes, setRfEdges]);
 
   // Sync React Flow changes back to store (for saves/exports)
   const syncToStore = useCallback(() => {
@@ -153,12 +279,17 @@ function App() {
     markerEnd: { type: MarkerType.ArrowClosed },
   };
 
-  // Handle node selection
+  // Handle node selection and block expansion
   const onNodeClick = useCallback(
     (_event: React.MouseEvent, node: any) => {
       setSelectedNode(node);
+
+      // Toggle block expansion if it's a block node
+      if (node.data?.layerType === 'Block') {
+        toggleBlockExpansion(node.id);
+      }
     },
-    [setSelectedNode]
+    [setSelectedNode, toggleBlockExpansion]
   );
 
   // Handle pane click (clicking on the canvas background)

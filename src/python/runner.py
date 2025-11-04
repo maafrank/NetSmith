@@ -15,6 +15,13 @@ from torch.utils.data import DataLoader, Dataset, random_split
 import time
 
 
+class AddLayer(nn.Module):
+    """Layer that performs element-wise addition of two inputs (for skip connections)"""
+
+    def forward(self, x1, x2):
+        return x1 + x2
+
+
 class DynamicModel(nn.Module):
     """Dynamically build PyTorch model from architecture JSON"""
 
@@ -23,6 +30,7 @@ class DynamicModel(nn.Module):
         self.architecture = architecture
         self.layers = nn.ModuleDict()
         self.forward_order = []
+        self.node_inputs = {}  # Track which nodes provide input to each node
 
         self._build_model()
 
@@ -55,6 +63,14 @@ class DynamicModel(nn.Module):
                 "Every model must end with an Output layer.\n"
                 "Add an Output layer from the Layer Palette on the left."
             )
+
+        # Build node inputs mapping from edges
+        for edge in edges:
+            target = edge['target']
+            source = edge['source']
+            if target not in self.node_inputs:
+                self.node_inputs[target] = []
+            self.node_inputs[target].append(source)
 
         # Sort nodes topologically
         sorted_nodes = self._topological_sort(nodes, edges)
@@ -116,6 +132,9 @@ class DynamicModel(nn.Module):
             activation = params.get('activation', 'relu')
             return self._get_activation(activation)
 
+        elif layer_type == 'Add':
+            return AddLayer()
+
         return None
 
     def _get_activation(self, activation_type):
@@ -164,9 +183,37 @@ class DynamicModel(nn.Module):
 
     def forward(self, x):
         """Forward pass through the network"""
+        # Track outputs from each node for skip connections
+        outputs = {}
+
+        # Find the input node ID
+        input_node = next((n for n in self.architecture['nodes'] if n['data']['layerType'] == 'Input'), None)
+        if input_node:
+            outputs[input_node['id']] = x
+
         for layer_id, layer_type in self.forward_order:
             layer = self.layers[layer_id]
-            x = layer(x)
+
+            # Get inputs for this node
+            input_nodes = self.node_inputs.get(layer_id, [])
+
+            if layer_type == 'Add' and len(input_nodes) >= 2:
+                # Add layer needs two inputs
+                # First input is the main path (sequential), second is the skip connection
+                input1 = outputs.get(input_nodes[0], x)
+                input2 = outputs.get(input_nodes[1], x)
+                x = layer(input1, input2)
+            elif input_nodes:
+                # Regular layer - use the last output from previous node
+                x = outputs.get(input_nodes[0], x)
+                x = layer(x)
+            else:
+                # No specific input - use current x
+                x = layer(x)
+
+            # Store output for this node
+            outputs[layer_id] = x
+
         return x
 
 

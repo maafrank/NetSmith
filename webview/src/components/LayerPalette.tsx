@@ -1,5 +1,6 @@
 import { LayerType } from '../types';
 import { useStore } from '../store';
+import { getBlockTemplate } from '../blockTemplates';
 
 const layerCategories = {
   'Core Layers': [
@@ -25,12 +26,15 @@ const layerCategories = {
   'Utility': [
     { type: 'Flatten' as LayerType, icon: '📄', description: 'Flatten' },
   ],
+  'Blocks': [
+    { type: 'Block' as LayerType, icon: '🧱', description: 'Skip connection block', blockType: 'SkipConnection' },
+  ],
 };
 
 export default function LayerPalette() {
   const { addNode, nodes } = useStore();
 
-  const handleAddLayer = (layerType: LayerType) => {
+  const handleAddLayer = (layerType: LayerType, blockType?: string) => {
     const nodeId = `${layerType.toLowerCase()}_${Date.now()}`;
     const position = {
       x: Math.random() * 500 + 100,
@@ -75,6 +79,19 @@ export default function LayerPalette() {
         defaultParams.units = 10;
         defaultParams.activation = 'softmax';
         break;
+      case 'Block':
+        if (blockType) {
+          const template = getBlockTemplate(blockType as any, nodeId);
+          if (template) {
+            defaultParams.blockType = blockType;
+            defaultParams.internalNodes = template.internalNodes;
+            defaultParams.internalEdges = template.internalEdges;
+            defaultParams.expanded = false;
+            // Copy template default params
+            Object.assign(defaultParams, template.defaultParams);
+          }
+        }
+        break;
     }
 
     addNode({
@@ -82,7 +99,7 @@ export default function LayerPalette() {
       type: layerType,
       position,
       data: {
-        label: layerType,
+        label: layerType === 'Block' ? (blockType || 'Block') : layerType,
         layerType,
         params: defaultParams,
       },
@@ -97,10 +114,10 @@ export default function LayerPalette() {
         <div key={category} className="mb-6">
           <h3 className="text-sm font-semibold text-gray-400 mb-2">{category}</h3>
           <div className="space-y-2">
-            {layers.map((layer) => (
+            {layers.map((layer: any) => (
               <button
-                key={layer.type}
-                onClick={() => handleAddLayer(layer.type)}
+                key={layer.type + (layer.blockType || '')}
+                onClick={() => handleAddLayer(layer.type, layer.blockType)}
                 className="w-full text-left px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-md transition-colors group"
               >
                 <div className="flex items-center gap-2">

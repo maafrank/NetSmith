@@ -51,6 +51,11 @@ export default function PropertiesPanel({ onUpdateNode, onDeleteNode }: Properti
       const kernelSize = Array.isArray(params.kernelSize) ? params.kernelSize[0] : params.kernelSize || 3;
       setKernelSizeText(String(kernelSize));
     }
+    if (layerType === 'Block') {
+      setFiltersText(String(params.filters || 64));
+      const kernelSize = Array.isArray(params.kernelSize) ? params.kernelSize[0] : params.kernelSize || 3;
+      setKernelSizeText(String(kernelSize));
+    }
     if (layerType === 'MaxPool2D' || layerType === 'AvgPool2D') {
       const poolSize = Array.isArray(params.poolSize) ? params.poolSize[0] : params.poolSize || 2;
       setPoolSizeText(String(poolSize));
@@ -356,6 +361,77 @@ export default function PropertiesPanel({ onUpdateNode, onDeleteNode }: Properti
                 ))}
               </select>
               <p className="text-xs text-gray-500 mt-1">Typically softmax for classification, linear for regression</p>
+            </div>
+          </>
+        )}
+
+        {layerType === 'Block' && (
+          <>
+            <div className="p-3 bg-blue-900 bg-opacity-20 border border-blue-700 rounded">
+              <p className="text-xs text-blue-300">
+                💡 Click the block node to expand/collapse and view internal layers
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Block Type</label>
+              <div className="text-white font-bold">{params.blockType || 'Custom'}</div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Filters</label>
+              <input
+                type="text"
+                value={filtersText}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFiltersText(value);
+                  const num = parseInt(value);
+                  if (!isNaN(num) && num > 0) {
+                    handleParamChange('filters', num);
+                  }
+                }}
+                className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Kernel Size</label>
+              <input
+                type="text"
+                value={kernelSizeText}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setKernelSizeText(value);
+                  const num = parseInt(value);
+                  if (!isNaN(num) && num > 0) {
+                    handleParamChange('kernelSize', num);
+                  }
+                }}
+                className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Activation</label>
+              <select
+                value={params.activation || 'relu'}
+                onChange={(e) => handleParamChange('activation', e.target.value)}
+                className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
+              >
+                {activationOptions.map((act) => (
+                  <option key={act} value={act}>
+                    {act}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Status</label>
+              <div className="text-sm text-gray-400">
+                {params.expanded ? '📂 Expanded' : '📁 Collapsed'}
+              </div>
             </div>
           </>
         )}

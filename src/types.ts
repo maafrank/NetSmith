@@ -25,6 +25,7 @@ export type LayerType =
     | 'BatchNorm'
     | 'Activation'
     | 'Output'
+    | 'Add'
     | 'Block';
 
 export interface LayerParams {
@@ -56,7 +57,13 @@ export interface LayerParams {
     // Activation
     activation?: ActivationType;
 
-    // Block reference
+    // Block-specific
+    blockType?: 'SkipConnection' | 'Transformer' | 'Custom';
+    internalNodes?: LayerNode[];
+    internalEdges?: Edge[];
+    expanded?: boolean;
+
+    // Block reference (for saved blocks)
     blockId?: string;
 }
 
