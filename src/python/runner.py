@@ -394,17 +394,11 @@ def train(run_path):
             train_total += target.size(0)
             train_correct += predicted.eq(target).sum().item()
 
-            # Emit batch-level metrics every 10 batches or on last batch
+            # Print batch progress (not emitted as metrics)
             if (batch_idx + 1) % 10 == 0 or (batch_idx + 1) == total_batches:
                 batch_loss = train_loss / (batch_idx + 1)
                 batch_accuracy = train_correct / train_total
-                emit_metrics(
-                    epoch,
-                    batch_loss,
-                    metrics={'accuracy': batch_accuracy},
-                    batch=batch_idx + 1,
-                    total_batches=total_batches
-                )
+                print(f"  Batch [{batch_idx + 1}/{total_batches}] - Loss: {batch_loss:.4f}, Acc: {batch_accuracy:.4f}")
 
         avg_train_loss = train_loss / len(train_loader)
         train_accuracy = train_correct / train_total

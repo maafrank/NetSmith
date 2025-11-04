@@ -84,13 +84,7 @@ export class ModelBuilderPanel {
                 break;
 
             case 'saveModel':
-                await this.projectManager.saveModel(
-                    workspaceFolder.uri,
-                    this.currentModelId,
-                    'Model',
-                    message.data
-                );
-                vscode.window.showInformationMessage('Model saved');
+                await this._saveModel(workspaceFolder.uri, message.data, message.modelName);
                 break;
 
             case 'runModel':
@@ -116,12 +110,14 @@ export class ModelBuilderPanel {
                 break;
 
             case 'pickDatasetFile':
+                console.log('Received pickDatasetFile message');
                 await this._pickDatasetFile();
                 break;
         }
     }
 
     private async _pickDatasetFile() {
+        console.log('Opening file picker dialog...');
         const options: vscode.OpenDialogOptions = {
             canSelectMany: false,
             openLabel: 'Select Dataset',
@@ -132,11 +128,15 @@ export class ModelBuilderPanel {
         };
 
         const fileUri = await vscode.window.showOpenDialog(options);
+        console.log('File picker result:', fileUri);
         if (fileUri && fileUri[0]) {
+            console.log('Sending dataset path to webview:', fileUri[0].fsPath);
             this._sendMessage({
                 type: 'datasetPathSelected',
                 path: fileUri[0].fsPath
             } as any);
+        } else {
+            console.log('No file selected');
         }
     }
 
@@ -180,6 +180,51 @@ export class ModelBuilderPanel {
                 vscode.window.showErrorMessage(`Training failed: ${error}`);
             }
         );
+    }
+
+    private async _saveModel(workspaceUri: vscode.Uri, architecture: ModelArchitecture, modelName?: string) {
+        // Prompt for model name if not provided
+        let name = modelName;
+        if (!name) {
+            name = await vscode.window.showInputBox({
+                prompt: 'Enter a name for your model',
+                placeHolder: 'my-model',
+                value: 'my-model',
+                validateInput: (value) => {
+                    if (!value || value.trim().length === 0) {
+                        return 'Model name cannot be empty';
+                    }
+                    // Check for invalid filename characters
+                    if (/[<>:"/\\|?*]/.test(value)) {
+                        return 'Model name contains invalid characters';
+                    }
+                    return null;
+                }
+            });
+        }
+
+        if (!name) {
+            // User cancelled
+            return;
+        }
+
+        // Use the name as the model ID (sanitized)
+        const modelId = name.toLowerCase().replace(/\s+/g, '-');
+
+        try {
+            await this.projectManager.saveModel(
+                workspaceUri,
+                modelId,
+                name,
+                architecture
+            );
+            vscode.window.showInformationMessage(`Model "${name}" saved successfully`);
+
+            // Update current model ID so subsequent saves overwrite
+            this.currentModelId = modelId;
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to save model: ${error}`);
+        }
     }
 
     private async _exportModel(format: 'pytorch' | 'onnx', workspaceUri: vscode.Uri) {

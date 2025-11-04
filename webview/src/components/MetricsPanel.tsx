@@ -41,18 +41,22 @@ export default function MetricsPanel() {
             )}
             <div className="bg-gray-800 rounded p-2">
               <div className="text-xs text-gray-400">Loss</div>
-              <div className="text-lg font-bold text-white">{currentMetrics.loss.toFixed(4)}</div>
+              <div className="text-lg font-bold text-white">
+                {currentMetrics.loss != null ? currentMetrics.loss.toFixed(4) : 'N/A'}
+              </div>
             </div>
-            {currentMetrics.valLoss !== undefined && (
+            {currentMetrics.valLoss !== undefined && currentMetrics.valLoss !== null && (
               <div className="bg-gray-800 rounded p-2">
                 <div className="text-xs text-gray-400">Val Loss</div>
                 <div className="text-lg font-bold text-white">{currentMetrics.valLoss.toFixed(4)}</div>
               </div>
             )}
-            {Object.entries(currentMetrics.metrics).map(([key, value]) => (
+            {Object.entries(currentMetrics.metrics || {}).map(([key, value]) => (
               <div key={key} className="bg-gray-800 rounded p-2">
                 <div className="text-xs text-gray-400">{key}</div>
-                <div className="text-lg font-bold text-white">{value.toFixed(4)}</div>
+                <div className="text-lg font-bold text-white">
+                  {value != null ? value.toFixed(4) : 'N/A'}
+                </div>
               </div>
             ))}
           </div>

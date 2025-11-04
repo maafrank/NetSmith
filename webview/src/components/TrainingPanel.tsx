@@ -61,6 +61,7 @@ export default function TrainingPanel({ onBeforeRun, nodes, edges }: TrainingPan
   };
 
   const handlePickDataset = () => {
+    console.log('Requesting file picker...');
     vscode.postMessage({ type: 'pickDatasetFile' });
   };
 

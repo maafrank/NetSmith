@@ -139,6 +139,7 @@ function App() {
           break;
 
         case 'datasetPathSelected':
+          console.log('Dataset path selected:', message.path);
           setTrainingConfig({ datasetPath: message.path });
           break;
       }
