@@ -1,5 +1,6 @@
 import { useStore } from '../store';
 import { ActivationType } from '../types';
+import { useState, useEffect } from 'react';
 
 const activationOptions: ActivationType[] = [
   'relu',
@@ -20,6 +21,50 @@ interface PropertiesPanelProps {
 
 export default function PropertiesPanel({ onUpdateNode }: PropertiesPanelProps) {
   const { selectedNode, updateNode, deleteNode } = useStore();
+
+  // Local state for all text inputs to allow free editing
+  const [inputShapeText, setInputShapeText] = useState('');
+  const [unitsText, setUnitsText] = useState('');
+  const [filtersText, setFiltersText] = useState('');
+  const [kernelSizeText, setKernelSizeText] = useState('');
+  const [poolSizeText, setPoolSizeText] = useState('');
+  const [dropoutText, setDropoutText] = useState('');
+  const [momentumText, setMomentumText] = useState('');
+  const [epsilonText, setEpsilonText] = useState('');
+  const [outputUnitsText, setOutputUnitsText] = useState('');
+
+  // Sync all text inputs with selectedNode params
+  useEffect(() => {
+    if (!selectedNode) return;
+
+    const { layerType, params } = selectedNode.data;
+
+    if (layerType === 'Input') {
+      setInputShapeText(params.inputShape?.join(',') || '');
+    }
+    if (layerType === 'Dense') {
+      setUnitsText(String(params.units || 128));
+    }
+    if (layerType === 'Conv2D' || layerType === 'Conv1D') {
+      setFiltersText(String(params.filters || 32));
+      const kernelSize = Array.isArray(params.kernelSize) ? params.kernelSize[0] : params.kernelSize || 3;
+      setKernelSizeText(String(kernelSize));
+    }
+    if (layerType === 'MaxPool2D' || layerType === 'AvgPool2D') {
+      const poolSize = Array.isArray(params.poolSize) ? params.poolSize[0] : params.poolSize || 2;
+      setPoolSizeText(String(poolSize));
+    }
+    if (layerType === 'Dropout') {
+      setDropoutText(String(params.rate || 0.5));
+    }
+    if (layerType === 'BatchNorm') {
+      setMomentumText(String(params.momentum || 0.99));
+      setEpsilonText(String(params.epsilon || 0.001));
+    }
+    if (layerType === 'Output') {
+      setOutputUnitsText(String(params.units || 10));
+    }
+  }, [selectedNode?.id, selectedNode?.data]);
 
   if (!selectedNode) {
     return (
@@ -87,22 +132,25 @@ export default function PropertiesPanel({ onUpdateNode }: PropertiesPanelProps) 
             </label>
             <input
               type="text"
-              value={params.inputShape?.join(',') || ''}
+              value={inputShapeText}
               onChange={(e) => {
                 const value = e.target.value;
+                setInputShapeText(value);
+
                 if (!value.trim()) {
                   handleParamChange('inputShape', []);
                   return;
                 }
-                // Allow typing commas - only parse when all parts are valid
+
+                // Parse and validate
                 const parsed = value.split(',').map((v) => {
                   const trimmed = v.trim();
-                  if (trimmed === '') return null; // Allow empty parts while typing
+                  if (trimmed === '') return null;
                   const num = parseInt(trimmed);
                   return isNaN(num) ? null : num;
                 });
 
-                // Only update if all parts are valid numbers (no nulls)
+                // Only update if all parts are valid positive numbers
                 if (parsed.every(n => n !== null && n > 0)) {
                   handleParamChange('inputShape', parsed as number[]);
                 }
@@ -117,13 +165,14 @@ export default function PropertiesPanel({ onUpdateNode }: PropertiesPanelProps) 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">Units</label>
             <input
-              type="number"
-              min="1"
-              value={params.units || 128}
+              type="text"
+              value={unitsText}
               onChange={(e) => {
-                const value = parseInt(e.target.value);
-                if (!isNaN(value) && value > 0) {
-                  handleParamChange('units', value);
+                const value = e.target.value;
+                setUnitsText(value);
+                const num = parseInt(value);
+                if (!isNaN(num) && num > 0) {
+                  handleParamChange('units', num);
                 }
               }}
               className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
@@ -136,13 +185,14 @@ export default function PropertiesPanel({ onUpdateNode }: PropertiesPanelProps) 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">Filters</label>
               <input
-                type="number"
-                min="1"
-                value={params.filters || 32}
+                type="text"
+                value={filtersText}
                 onChange={(e) => {
-                  const value = parseInt(e.target.value);
-                  if (!isNaN(value) && value > 0) {
-                    handleParamChange('filters', value);
+                  const value = e.target.value;
+                  setFiltersText(value);
+                  const num = parseInt(value);
+                  if (!isNaN(num) && num > 0) {
+                    handleParamChange('filters', num);
                   }
                 }}
                 className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
@@ -151,15 +201,14 @@ export default function PropertiesPanel({ onUpdateNode }: PropertiesPanelProps) 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">Kernel Size</label>
               <input
-                type="number"
-                min="1"
-                value={
-                  Array.isArray(params.kernelSize) ? params.kernelSize[0] : params.kernelSize || 3
-                }
+                type="text"
+                value={kernelSizeText}
                 onChange={(e) => {
-                  const value = parseInt(e.target.value);
-                  if (!isNaN(value) && value > 0) {
-                    handleParamChange('kernelSize', value);
+                  const value = e.target.value;
+                  setKernelSizeText(value);
+                  const num = parseInt(value);
+                  if (!isNaN(num) && num > 0) {
+                    handleParamChange('kernelSize', num);
                   }
                 }}
                 className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
@@ -183,15 +232,14 @@ export default function PropertiesPanel({ onUpdateNode }: PropertiesPanelProps) 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">Pool Size</label>
             <input
-              type="number"
-              min="1"
-              value={
-                Array.isArray(params.poolSize) ? params.poolSize[0] : params.poolSize || 2
-              }
+              type="text"
+              value={poolSizeText}
               onChange={(e) => {
-                const value = parseInt(e.target.value);
-                if (!isNaN(value) && value > 0) {
-                  handleParamChange('poolSize', value);
+                const value = e.target.value;
+                setPoolSizeText(value);
+                const num = parseInt(value);
+                if (!isNaN(num) && num > 0) {
+                  handleParamChange('poolSize', num);
                 }
               }}
               className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
@@ -203,15 +251,14 @@ export default function PropertiesPanel({ onUpdateNode }: PropertiesPanelProps) 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">Dropout Rate</label>
             <input
-              type="number"
-              step="0.1"
-              min="0"
-              max="1"
-              value={params.rate || 0.5}
+              type="text"
+              value={dropoutText}
               onChange={(e) => {
-                const value = parseFloat(e.target.value);
-                if (!isNaN(value) && value >= 0 && value <= 1) {
-                  handleParamChange('rate', value);
+                const value = e.target.value;
+                setDropoutText(value);
+                const num = parseFloat(value);
+                if (!isNaN(num) && num >= 0 && num <= 1) {
+                  handleParamChange('rate', num);
                 }
               }}
               className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
@@ -224,15 +271,14 @@ export default function PropertiesPanel({ onUpdateNode }: PropertiesPanelProps) 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">Momentum</label>
               <input
-                type="number"
-                step="0.01"
-                min="0"
-                max="1"
-                value={params.momentum || 0.99}
+                type="text"
+                value={momentumText}
                 onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  if (!isNaN(value) && value >= 0 && value <= 1) {
-                    handleParamChange('momentum', value);
+                  const value = e.target.value;
+                  setMomentumText(value);
+                  const num = parseFloat(value);
+                  if (!isNaN(num) && num >= 0 && num <= 1) {
+                    handleParamChange('momentum', num);
                   }
                 }}
                 className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
@@ -241,14 +287,14 @@ export default function PropertiesPanel({ onUpdateNode }: PropertiesPanelProps) 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">Epsilon</label>
               <input
-                type="number"
-                step="0.0001"
-                min="0"
-                value={params.epsilon || 0.001}
+                type="text"
+                value={epsilonText}
                 onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  if (!isNaN(value) && value >= 0) {
-                    handleParamChange('epsilon', value);
+                  const value = e.target.value;
+                  setEpsilonText(value);
+                  const num = parseFloat(value);
+                  if (!isNaN(num) && num >= 0) {
+                    handleParamChange('epsilon', num);
                   }
                 }}
                 className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
@@ -279,13 +325,14 @@ export default function PropertiesPanel({ onUpdateNode }: PropertiesPanelProps) 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">Units (Classes)</label>
               <input
-                type="number"
-                min="1"
-                value={params.units || 10}
+                type="text"
+                value={outputUnitsText}
                 onChange={(e) => {
-                  const value = parseInt(e.target.value);
-                  if (!isNaN(value) && value > 0) {
-                    handleParamChange('units', value);
+                  const value = e.target.value;
+                  setOutputUnitsText(value);
+                  const num = parseInt(value);
+                  if (!isNaN(num) && num > 0) {
+                    handleParamChange('units', num);
                   }
                 }}
                 className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
