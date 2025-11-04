@@ -77,15 +77,23 @@ const syncToStore = useCallback(() => {
   setEdges(rfEdges as any);
 }, [rfNodes, rfEdges, setNodes, setEdges]);
 
-// Only sync store → React Flow on length changes (new nodes added)
+// Only sync store → React Flow when new nodes are added
+// IMPORTANT: Merge new nodes instead of replacing entire state
 useEffect(() => {
   if (nodes.length > rfNodes.length) {
-    setRfNodes(nodes as any);
+    const rfNodeIds = new Set(rfNodes.map(n => n.id));
+    const newNodes = nodes.filter(n => !rfNodeIds.has(n.id));
+    setRfNodes([...rfNodes, ...newNodes as any]);
   }
-}, [nodes.length]);
+}, [nodes.length, nodes, rfNodes, setRfNodes]);
 ```
 
-**Do not create bidirectional syncing** - this causes infinite loops. Always call `syncToStore()` before operations that need store data (like running training).
+**Critical patterns:**
+- **Do not create bidirectional syncing** - this causes infinite loops
+- **Never replace entire React Flow state** when adding nodes - merge instead to preserve positions
+- Always call `syncToStore()` before operations that need store data (like running training)
+- React Flow zoom/pan state is independent - use `defaultViewport` to set initial zoom (e.g., `zoom: 0.8`)
+- Avoid `fitView` prop as it causes unwanted zoom changes when nodes are added
 
 ### Project File Structure
 

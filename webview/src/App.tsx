@@ -33,11 +33,15 @@ function App() {
   const [isResizingRight, setIsResizingRight] = useState(false);
 
   // Only sync from store to React Flow when store adds new nodes
+  // But preserve React Flow's positions for existing nodes
   useEffect(() => {
     if (nodes.length > rfNodes.length) {
-      setRfNodes(nodes as any);
+      // New node(s) added - merge with React Flow state
+      const rfNodeIds = new Set(rfNodes.map(n => n.id));
+      const newNodes = nodes.filter(n => !rfNodeIds.has(n.id));
+      setRfNodes([...rfNodes, ...newNodes as any]);
     }
-  }, [nodes.length]);
+  }, [nodes.length, nodes, rfNodes, setRfNodes]);
 
   useEffect(() => {
     if (edges.length !== rfEdges.length) {
@@ -97,7 +101,9 @@ function App() {
 
   // Handle connections
   const onConnect = useCallback(
-    (params: Connection) => setRfEdges((eds) => addEdge({ ...params, markerEnd: { type: MarkerType.ArrowClosed } }, eds)),
+    (params: Connection) => {
+      setRfEdges((eds) => addEdge({ ...params, markerEnd: { type: MarkerType.ArrowClosed } }, eds));
+    },
     [setRfEdges]
   );
 
@@ -259,7 +265,9 @@ function App() {
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
-          fitView
+          defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+          minZoom={0.1}
+          maxZoom={2}
           attributionPosition="bottom-left"
         >
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
