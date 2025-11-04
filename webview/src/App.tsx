@@ -22,7 +22,7 @@ import MetricsPanel from './components/MetricsPanel';
 import { nodeTypes } from './components/nodes';
 
 function App() {
-  const { nodes, edges, setNodes, setEdges, setSelectedNode, addTrainingMetrics, setIsTraining, setTrainingConfig, setTrainingError } = useStore();
+  const { nodes, edges, setNodes, setEdges, setSelectedNode, addTrainingMetrics, setIsTraining, setTrainingConfig, setTrainingError, setShowTrainingConfig } = useStore();
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState([]);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState([]);
 
@@ -119,6 +119,11 @@ function App() {
     },
     [setSelectedNode]
   );
+
+  // Handle pane click (clicking on the canvas background)
+  const onPaneClick = useCallback(() => {
+    setShowTrainingConfig(false);
+  }, [setShowTrainingConfig]);
 
   // Handle messages from extension
   useEffect(() => {
@@ -263,6 +268,7 @@ function App() {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
+          onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
           defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}

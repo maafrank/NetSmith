@@ -12,6 +12,7 @@ interface AppState {
   trainingMetrics: TrainingMetrics[];
   trainingConfig: TrainingConfig;
   trainingError: string | null;
+  showTrainingConfig: boolean;
 
   // Actions
   setNodes: (nodes: LayerNode[]) => void;
@@ -25,6 +26,7 @@ interface AppState {
   setIsTraining: (isTraining: boolean) => void;
   setTrainingError: (error: string | null) => void;
   clearMetrics: () => void;
+  setShowTrainingConfig: (show: boolean) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -35,6 +37,7 @@ export const useStore = create<AppState>((set) => ({
   isTraining: false,
   trainingMetrics: [],
   trainingError: null,
+  showTrainingConfig: false,
   trainingConfig: {
     datasetPath: '',
     datasetType: 'full',
@@ -96,4 +99,6 @@ export const useStore = create<AppState>((set) => ({
   setTrainingError: (error) => set({ trainingError: error }),
 
   clearMetrics: () => set({ trainingMetrics: [], trainingError: null }),
+
+  setShowTrainingConfig: (show) => set({ showTrainingConfig: show }),
 }));

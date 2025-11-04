@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import { vscode } from '../vscode';
 import { OptimizerType, LossType, LayerNode, Edge } from '../types';
@@ -13,9 +13,9 @@ interface TrainingPanelProps {
 }
 
 export default function TrainingPanel({ onBeforeRun, nodes, edges }: TrainingPanelProps) {
-  const { isTraining, trainingConfig, setTrainingConfig, clearMetrics } = useStore();
-  const [showConfig, setShowConfig] = useState(false);
+  const { isTraining, trainingConfig, setTrainingConfig, clearMetrics, showTrainingConfig, setShowTrainingConfig } = useStore();
   const [availableDatasets, setAvailableDatasets] = useState<string[]>([]);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -28,6 +28,22 @@ export default function TrainingPanel({ onBeforeRun, nodes, edges }: TrainingPan
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        setShowTrainingConfig(false);
+      }
+    };
+
+    if (showTrainingConfig) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showTrainingConfig, setShowTrainingConfig]);
+
   const handleRunModel = () => {
     if (nodes.length === 0) {
       alert('Please add layers to your model first');
@@ -36,7 +52,7 @@ export default function TrainingPanel({ onBeforeRun, nodes, edges }: TrainingPan
 
     if (!trainingConfig.datasetPath) {
       alert('Please configure dataset path');
-      setShowConfig(true);
+      setShowTrainingConfig(true);
       return;
     }
 
@@ -77,7 +93,7 @@ export default function TrainingPanel({ onBeforeRun, nodes, edges }: TrainingPan
   };
 
   return (
-    <div className="min-w-[300px]">
+    <div ref={panelRef} className="min-w-[300px]">
       <div className="flex gap-2 mb-4">
         {!isTraining ? (
           <button
@@ -96,7 +112,7 @@ export default function TrainingPanel({ onBeforeRun, nodes, edges }: TrainingPan
         )}
 
         <button
-          onClick={() => setShowConfig(!showConfig)}
+          onClick={() => setShowTrainingConfig(!showTrainingConfig)}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
         >
           ⚙️
@@ -118,7 +134,7 @@ export default function TrainingPanel({ onBeforeRun, nodes, edges }: TrainingPan
         </button>
       </div>
 
-      {showConfig && (
+      {showTrainingConfig && (
         <div className="mt-4 p-4 bg-gray-900 rounded-lg max-h-[400px] overflow-y-auto">
           <h3 className="font-bold text-white mb-3">Training Configuration</h3>
 

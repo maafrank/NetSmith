@@ -147,6 +147,7 @@ useEffect(() => {
 - Manages application state (nodes, edges, training config, metrics, errors)
 - **Important**: `updateNode` must update both `nodes` array AND `selectedNode` to keep PropertiesPanel in sync
 - Stores `trainingError` to display detailed error messages in UI
+- Stores `showTrainingConfig` to control training panel expansion/collapse across the app
 
 ### Layer Components (`webview/src/components/`)
 - **LayerPalette**: Drag-and-drop layer creation
@@ -156,6 +157,7 @@ useEffect(() => {
   - Shows dropdown of available datasets (relative paths)
   - Includes file picker button for manual selection
   - Prompts for model name on save (with sanitization)
+  - Collapses when clicking outside the panel or on the React Flow canvas (via `onPaneClick`)
 - **MetricsPanel**: Real-time training visualization with batch progress and minimize toggle
   - Displays detailed error messages in red banner when training fails
   - Shows full Python traceback in scrollable code block
@@ -208,6 +210,13 @@ const newWidth = Math.max(50, Math.min(600, e.clientX));
 ```
 Minimum: 50px (allows near-complete minimization)
 Maximum: 600px
+
+### UI Interaction Patterns
+
+**Click-outside behavior for collapsible panels:**
+- Use Zustand store state (not local component state) for UI elements that need to respond to clicks on the React Flow canvas
+- Add `onPaneClick` handler to ReactFlow component to trigger state changes
+- Example: TrainingPanel uses `showTrainingConfig` in store, which is toggled by both the gear button and `onPaneClick` in App.tsx
 
 ## Important Implementation Details
 
