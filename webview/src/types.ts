@@ -24,6 +24,7 @@ export type LayerType =
   | 'BatchNorm'
   | 'Activation'
   | 'Output'
+  | 'Add'
   | 'Block';
 
 export interface LayerParams {
@@ -39,6 +40,10 @@ export interface LayerParams {
   momentum?: number;
   epsilon?: number;
   activation?: ActivationType;
+  blockType?: 'SkipConnection' | 'Transformer' | 'Custom';
+  internalNodes?: LayerNode[];
+  internalEdges?: Edge[];
+  expanded?: boolean;
   blockId?: string;
 }
 

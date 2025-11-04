@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { LayerNode } from '../../types';
+import BlockNode from './BlockNode';
 
 const BaseNode = ({ data, selected }: NodeProps<LayerNode['data']>) => {
   const getNodeColor = (layerType: string) => {
@@ -25,6 +26,8 @@ const BaseNode = ({ data, selected }: NodeProps<LayerNode['data']>) => {
         return 'bg-pink-600';
       case 'Flatten':
         return 'bg-teal-600';
+      case 'Add':
+        return 'bg-emerald-600';
       default:
         return 'bg-gray-600';
     }
@@ -89,5 +92,6 @@ export const nodeTypes = {
   BatchNorm: memo(BaseNode),
   Activation: memo(BaseNode),
   Output: memo(BaseNode),
-  Block: memo(BaseNode),
+  Add: memo(BaseNode),
+  Block: BlockNode,
 };

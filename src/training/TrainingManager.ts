@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { spawn, ChildProcess } from 'child_process';
 import { TrainingConfig, ModelArchitecture, TrainingMetrics } from '../types';
+import { flattenBlocks, validateFlattenedArchitecture } from './blockFlattener';
 
 export class TrainingManager {
     private currentProcess: ChildProcess | null = null;
@@ -23,10 +24,27 @@ export class TrainingManager {
         this.metricsCallback = onMetrics;
         let stderrBuffer = '';
 
+        // Flatten blocks before training
+        const flattened = flattenBlocks(architecture.nodes, architecture.edges);
+
+        // Validate flattened architecture
+        const validationError = validateFlattenedArchitecture(flattened.nodes, flattened.edges);
+        if (validationError) {
+            onError(validationError);
+            return;
+        }
+
+        // Create flattened architecture for training
+        const flattenedArchitecture: ModelArchitecture = {
+            nodes: flattened.nodes,
+            edges: flattened.edges,
+            blocks: architecture.blocks || []
+        };
+
         // Save architecture and config to run directory
         await fs.writeFile(
             path.join(runPath, 'architecture.json'),
-            JSON.stringify(architecture, null, 2)
+            JSON.stringify(flattenedArchitecture, null, 2)
         );
         await fs.writeFile(
             path.join(runPath, 'config.json'),

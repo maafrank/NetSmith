@@ -21,6 +21,7 @@ interface AppState {
   addNode: (node: LayerNode) => void;
   updateNode: (id: string, data: Partial<LayerNode['data']>) => void;
   deleteNode: (id: string) => void;
+  toggleBlockExpansion: (id: string) => void;
   setTrainingConfig: (config: Partial<TrainingConfig>) => void;
   addTrainingMetrics: (metrics: TrainingMetrics) => void;
   setIsTraining: (isTraining: boolean) => void;
@@ -107,6 +108,48 @@ export const useStore = create<AppState>((set) => ({
       edges: state.edges.filter((edge) => edge.source !== id && edge.target !== id),
       selectedNode: state.selectedNode?.id === id ? null : state.selectedNode,
     })),
+
+  toggleBlockExpansion: (id) =>
+    set((state) => {
+      const node = state.nodes.find((n) => n.id === id);
+      if (!node || node.data.layerType !== 'Block') {
+        return state;
+      }
+
+      const newExpanded = !node.data.params.expanded;
+      const updatedNodes = state.nodes.map((n) =>
+        n.id === id
+          ? {
+              ...n,
+              data: {
+                ...n.data,
+                params: {
+                  ...n.data.params,
+                  expanded: newExpanded,
+                },
+              },
+            }
+          : n
+      );
+
+      const updatedSelectedNode = state.selectedNode?.id === id
+        ? {
+            ...state.selectedNode,
+            data: {
+              ...state.selectedNode.data,
+              params: {
+                ...state.selectedNode.data.params,
+                expanded: newExpanded,
+              },
+            },
+          }
+        : state.selectedNode;
+
+      return {
+        nodes: updatedNodes,
+        selectedNode: updatedSelectedNode,
+      };
+    }),
 
   setTrainingConfig: (config) =>
     set((state) => ({
