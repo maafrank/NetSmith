@@ -145,22 +145,122 @@ class DynamicModel(nn.Module):
         return x
 
 
-class DummyDataset(Dataset):
-    """Dummy dataset for testing - replace with actual data loading"""
+class NumpyDataset(Dataset):
+    """Dataset wrapper for NumPy arrays"""
 
-    def __init__(self, size=1000, input_shape=(3, 32, 32), num_classes=10):
-        self.size = size
-        self.input_shape = input_shape
-        self.num_classes = num_classes
+    def __init__(self, X, y, transform=None):
+        self.X = torch.from_numpy(X).float()
+        self.y = torch.from_numpy(y).long()
+        self.transform = transform
 
     def __len__(self):
-        return self.size
+        return len(self.X)
 
     def __getitem__(self, idx):
-        # Generate random data
-        x = torch.randn(*self.input_shape)
-        y = torch.randint(0, self.num_classes, (1,)).item()
+        x = self.X[idx]
+        y = self.y[idx]
+
+        if self.transform:
+            x = self.transform(x)
+
         return x, y
+
+
+def load_dataset(dataset_path, config):
+    """Load dataset from various formats"""
+    import numpy as np
+    from pathlib import Path
+
+    dataset_path = Path(dataset_path)
+
+    if not dataset_path.exists():
+        raise FileNotFoundError(f"Dataset not found: {dataset_path}")
+
+    print(f"Loading dataset from: {dataset_path}")
+
+    # NPZ files (NumPy arrays)
+    if dataset_path.suffix == '.npz':
+        data = np.load(dataset_path)
+        print(f"NPZ file keys: {data.files}")
+
+        # Try common key patterns
+        if 'X_train' in data.files and 'y_train' in data.files:
+            # Pre-split data
+            X_train = data['X_train']
+            y_train = data['y_train']
+            X_val = data.get('X_val', data.get('X_test', None))
+            y_val = data.get('y_val', data.get('y_test', None))
+
+            print(f"Loaded pre-split data: train={X_train.shape}, val={X_val.shape if X_val is not None else 'None'}")
+
+            # Normalize if needed (0-255 -> 0-1)
+            if X_train.max() > 1.0:
+                X_train = X_train / 255.0
+                if X_val is not None:
+                    X_val = X_val / 255.0
+
+            # Add channel dimension if needed (for MNIST: 28x28 -> 28x28x1)
+            if len(X_train.shape) == 3:  # (N, H, W)
+                X_train = np.expand_dims(X_train, axis=-1)
+                if X_val is not None:
+                    X_val = np.expand_dims(X_val, axis=-1)
+
+            # Convert to (N, C, H, W) for PyTorch
+            if len(X_train.shape) == 4:  # (N, H, W, C)
+                X_train = np.transpose(X_train, (0, 3, 1, 2))
+                if X_val is not None:
+                    X_val = np.transpose(X_val, (0, 3, 1, 2))
+
+            train_dataset = NumpyDataset(X_train, y_train)
+            val_dataset = NumpyDataset(X_val, y_val) if X_val is not None else None
+
+            return train_dataset, val_dataset
+
+        elif 'X' in data.files and 'y' in data.files:
+            # Single dataset, need to split
+            X = data['X']
+            y = data['y']
+
+            # Normalize
+            if X.max() > 1.0:
+                X = X / 255.0
+
+            # Add channel dimension if needed
+            if len(X.shape) == 3:
+                X = np.expand_dims(X, axis=-1)
+
+            # Convert to (N, C, H, W)
+            if len(X.shape) == 4:
+                X = np.transpose(X, (0, 3, 1, 2))
+
+            dataset = NumpyDataset(X, y)
+
+            # Split according to config
+            split_ratio = config.get('splitRatio', [0.8, 0.2])
+            train_size = int(len(dataset) * split_ratio[0])
+            val_size = len(dataset) - train_size
+
+            train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+
+            print(f"Split dataset: train={train_size}, val={val_size}")
+            return train_dataset, val_dataset
+
+        else:
+            raise ValueError(f"Unknown NPZ format. Available keys: {data.files}")
+
+    # PyTorch tensors
+    elif dataset_path.suffix in ['.pt', '.pth']:
+        data = torch.load(dataset_path)
+        # TODO: Implement PyTorch data loading
+        raise NotImplementedError("PyTorch dataset loading not yet implemented")
+
+    # Directory with images
+    elif dataset_path.is_dir():
+        # TODO: Implement image folder loading
+        raise NotImplementedError("Image folder loading not yet implemented")
+
+    else:
+        raise ValueError(f"Unsupported dataset format: {dataset_path.suffix}")
 
 
 def get_optimizer(name, parameters, lr):
@@ -188,7 +288,7 @@ def get_loss_function(name):
     return losses.get(name, nn.CrossEntropyLoss())
 
 
-def emit_metrics(epoch, loss, val_loss=None, metrics=None):
+def emit_metrics(epoch, loss, val_loss=None, metrics=None, batch=None, total_batches=None):
     """Emit training metrics to stdout for extension to capture"""
     metrics_data = {
         'epoch': epoch,
@@ -197,6 +297,10 @@ def emit_metrics(epoch, loss, val_loss=None, metrics=None):
         'metrics': metrics or {},
         'timestamp': int(time.time() * 1000)
     }
+    if batch is not None:
+        metrics_data['batch'] = batch
+    if total_batches is not None:
+        metrics_data['totalBatches'] = total_batches
     print(f"METRICS:{json.dumps(metrics_data)}", flush=True)
 
 
@@ -235,22 +339,27 @@ def train(run_path):
     print("Model architecture:")
     print(model)
 
-    # Create dummy dataset (TODO: load real data)
-    dataset = DummyDataset(size=1000)
-    train_size = int(0.8 * len(dataset))
-    val_size = len(dataset) - train_size
-    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    # Load dataset
+    dataset_path = config.get('datasetPath')
+    if not dataset_path:
+        raise ValueError("No dataset path specified in config")
+
+    train_dataset, val_dataset = load_dataset(dataset_path, config)
 
     train_loader = DataLoader(
         train_dataset,
         batch_size=config['batchSize'],
         shuffle=True
     )
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=config['batchSize'],
-        shuffle=False
-    )
+
+    if val_dataset:
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=config['batchSize'],
+            shuffle=False
+        )
+    else:
+        val_loader = None
 
     # Setup optimizer and loss
     optimizer = get_optimizer(
@@ -269,6 +378,7 @@ def train(run_path):
         train_loss = 0.0
         train_correct = 0
         train_total = 0
+        total_batches = len(train_loader)
 
         for batch_idx, (data, target) in enumerate(train_loader):
             data, target = data.to(device), target.to(device)
@@ -284,40 +394,62 @@ def train(run_path):
             train_total += target.size(0)
             train_correct += predicted.eq(target).sum().item()
 
+            # Emit batch-level metrics every 10 batches or on last batch
+            if (batch_idx + 1) % 10 == 0 or (batch_idx + 1) == total_batches:
+                batch_loss = train_loss / (batch_idx + 1)
+                batch_accuracy = train_correct / train_total
+                emit_metrics(
+                    epoch,
+                    batch_loss,
+                    metrics={'accuracy': batch_accuracy},
+                    batch=batch_idx + 1,
+                    total_batches=total_batches
+                )
+
         avg_train_loss = train_loss / len(train_loader)
         train_accuracy = train_correct / train_total
 
         # Validation phase
-        model.eval()
-        val_loss = 0.0
-        val_correct = 0
-        val_total = 0
+        avg_val_loss = None
+        val_accuracy = None
 
-        with torch.no_grad():
-            for data, target in val_loader:
-                data, target = data.to(device), target.to(device)
-                output = model(data)
-                loss = criterion(output, target)
+        if val_loader:
+            model.eval()
+            val_loss = 0.0
+            val_correct = 0
+            val_total = 0
 
-                val_loss += loss.item()
-                _, predicted = output.max(1)
-                val_total += target.size(0)
-                val_correct += predicted.eq(target).sum().item()
+            with torch.no_grad():
+                for data, target in val_loader:
+                    data, target = data.to(device), target.to(device)
+                    output = model(data)
+                    loss = criterion(output, target)
 
-        avg_val_loss = val_loss / len(val_loader)
-        val_accuracy = val_correct / val_total
+                    val_loss += loss.item()
+                    _, predicted = output.max(1)
+                    val_total += target.size(0)
+                    val_correct += predicted.eq(target).sum().item()
+
+            avg_val_loss = val_loss / len(val_loader)
+            val_accuracy = val_correct / val_total
 
         # Emit metrics
+        metrics_dict = {'accuracy': train_accuracy}
+        if val_accuracy is not None:
+            metrics_dict['val_accuracy'] = val_accuracy
+
         emit_metrics(
             epoch,
             avg_train_loss,
             avg_val_loss,
-            {'accuracy': train_accuracy, 'val_accuracy': val_accuracy}
+            metrics_dict
         )
 
-        print(f"Epoch {epoch}/{config['epochs']} - "
-              f"Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, "
-              f"Acc: {train_accuracy:.4f}, Val Acc: {val_accuracy:.4f}")
+        # Print progress
+        progress_msg = f"Epoch {epoch}/{config['epochs']} - Loss: {avg_train_loss:.4f}, Acc: {train_accuracy:.4f}"
+        if avg_val_loss is not None:
+            progress_msg += f", Val Loss: {avg_val_loss:.4f}, Val Acc: {val_accuracy:.4f}"
+        print(progress_msg)
 
         # Save checkpoint
         if config['saveCheckpoints'] and epoch % config.get('checkpointFrequency', 5) == 0:

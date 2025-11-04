@@ -86,6 +86,8 @@ export type MetricType = 'accuracy' | 'precision' | 'recall' | 'f1';
 
 export interface TrainingMetrics {
   epoch: number;
+  batch?: number;
+  totalBatches?: number;
   loss: number;
   valLoss?: number;
   metrics: { [key: string]: number };

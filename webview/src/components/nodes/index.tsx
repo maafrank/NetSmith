@@ -61,6 +61,12 @@ const BaseNode = ({ data, selected }: NodeProps<LayerNode['data']>) => {
         {data.layerType === 'Activation' && data.params.activation && (
           <div className="text-xs mt-1">{data.params.activation}</div>
         )}
+        {data.layerType === 'Output' && data.params.units && (
+          <div className="text-xs mt-1">
+            Classes: {data.params.units}
+            {data.params.activation && ` | ${data.params.activation}`}
+          </div>
+        )}
       </div>
 
       {data.layerType !== 'Output' && (

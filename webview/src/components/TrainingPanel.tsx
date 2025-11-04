@@ -1,13 +1,19 @@
 import { useState } from 'react';
 import { useStore } from '../store';
 import { vscode } from '../vscode';
-import { OptimizerType, LossType } from '../types';
+import { OptimizerType, LossType, LayerNode, Edge } from '../types';
 
 const optimizers: OptimizerType[] = ['adam', 'sgd', 'rmsprop', 'adamw', 'adagrad'];
 const losses: LossType[] = ['cross_entropy', 'mse', 'mae', 'binary_cross_entropy', 'huber'];
 
-export default function TrainingPanel() {
-  const { nodes, edges, isTraining, trainingConfig, setTrainingConfig, clearMetrics } = useStore();
+interface TrainingPanelProps {
+  onBeforeRun: () => void;
+  nodes: LayerNode[];
+  edges: Edge[];
+}
+
+export default function TrainingPanel({ onBeforeRun, nodes, edges }: TrainingPanelProps) {
+  const { isTraining, trainingConfig, setTrainingConfig, clearMetrics } = useStore();
   const [showConfig, setShowConfig] = useState(false);
 
   const handleRunModel = () => {
@@ -21,6 +27,9 @@ export default function TrainingPanel() {
       setShowConfig(true);
       return;
     }
+
+    // Sync React Flow state to store before running
+    onBeforeRun();
 
     clearMetrics();
 
@@ -36,6 +45,7 @@ export default function TrainingPanel() {
   };
 
   const handleSaveModel = () => {
+    onBeforeRun(); // Sync state before saving
     vscode.postMessage({
       type: 'saveModel',
       data: { nodes, edges, blocks: [] },
@@ -43,10 +53,15 @@ export default function TrainingPanel() {
   };
 
   const handleExport = () => {
+    onBeforeRun(); // Sync state before exporting
     vscode.postMessage({
       type: 'exportModel',
       format: 'pytorch',
     });
+  };
+
+  const handlePickDataset = () => {
+    vscode.postMessage({ type: 'pickDatasetFile' });
   };
 
   return (
@@ -100,13 +115,25 @@ export default function TrainingPanel() {
               <label className="block text-xs font-medium text-gray-300 mb-1">
                 Dataset Path
               </label>
-              <input
-                type="text"
-                value={trainingConfig.datasetPath}
-                onChange={(e) => setTrainingConfig({ datasetPath: e.target.value })}
-                placeholder="/path/to/dataset"
-                className="w-full px-2 py-1 text-sm bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={trainingConfig.datasetPath}
+                  onChange={(e) => setTrainingConfig({ datasetPath: e.target.value })}
+                  placeholder="/path/to/dataset.npz"
+                  className="flex-1 px-2 py-1 text-sm bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
+                />
+                <button
+                  onClick={handlePickDataset}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded"
+                  title="Browse files"
+                >
+                  📁
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Supported: .npz (NumPy arrays), .pt (PyTorch), folders with images
+              </p>
             </div>
 
             <div>

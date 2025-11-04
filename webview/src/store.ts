@@ -58,11 +58,19 @@ export const useStore = create<AppState>((set) => ({
     })),
 
   updateNode: (id, data) =>
-    set((state) => ({
-      nodes: state.nodes.map((node) =>
+    set((state) => {
+      const updatedNodes = state.nodes.map((node) =>
         node.id === id ? { ...node, data: { ...node.data, ...data } } : node
-      ),
-    })),
+      );
+      const updatedSelectedNode = state.selectedNode?.id === id
+        ? { ...state.selectedNode, data: { ...state.selectedNode.data, ...data } }
+        : state.selectedNode;
+
+      return {
+        nodes: updatedNodes,
+        selectedNode: updatedSelectedNode,
+      };
+    }),
 
   deleteNode: (id) =>
     set((state) => ({

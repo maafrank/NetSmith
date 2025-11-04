@@ -114,6 +114,29 @@ export class ModelBuilderPanel {
                 // TODO: Implement block loading
                 this._sendMessage({ type: 'loadBlocks', blocks: [] });
                 break;
+
+            case 'pickDatasetFile':
+                await this._pickDatasetFile();
+                break;
+        }
+    }
+
+    private async _pickDatasetFile() {
+        const options: vscode.OpenDialogOptions = {
+            canSelectMany: false,
+            openLabel: 'Select Dataset',
+            filters: {
+                'Data Files': ['npz', 'pt', 'pth', 'h5', 'hdf5'],
+                'All Files': ['*']
+            }
+        };
+
+        const fileUri = await vscode.window.showOpenDialog(options);
+        if (fileUri && fileUri[0]) {
+            this._sendMessage({
+                type: 'datasetPathSelected',
+                path: fileUri[0].fsPath
+            } as any);
         }
     }
 

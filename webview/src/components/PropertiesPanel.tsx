@@ -14,7 +14,11 @@ const activationOptions: ActivationType[] = [
   'linear',
 ];
 
-export default function PropertiesPanel() {
+interface PropertiesPanelProps {
+  onUpdateNode: (nodeId: string, newData: any) => void;
+}
+
+export default function PropertiesPanel({ onUpdateNode }: PropertiesPanelProps) {
   const { selectedNode, updateNode, deleteNode } = useStore();
 
   if (!selectedNode) {
@@ -30,12 +34,16 @@ export default function PropertiesPanel() {
   const { layerType, params } = data;
 
   const handleParamChange = (key: string, value: any) => {
-    updateNode(id, {
+    const newData = {
       params: {
         ...params,
         [key]: value,
       },
-    });
+    };
+
+    // Update both store and React Flow
+    updateNode(id, newData);
+    onUpdateNode(id, newData);
   };
 
   const handleDelete = () => {
@@ -80,12 +88,19 @@ export default function PropertiesPanel() {
             <input
               type="text"
               value={params.inputShape?.join(',') || ''}
-              onChange={(e) =>
-                handleParamChange(
-                  'inputShape',
-                  e.target.value.split(',').map((v) => parseInt(v.trim()))
-                )
-              }
+              onChange={(e) => {
+                const value = e.target.value;
+                if (!value.trim()) {
+                  handleParamChange('inputShape', []);
+                  return;
+                }
+                const parsed = value.split(',').map((v) => {
+                  const num = parseInt(v.trim());
+                  return isNaN(num) ? 0 : num;
+                }).filter(n => n > 0);
+                handleParamChange('inputShape', parsed);
+              }}
+              placeholder="28,28,1"
               className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
             />
           </div>
@@ -96,8 +111,14 @@ export default function PropertiesPanel() {
             <label className="block text-sm font-medium text-gray-300 mb-1">Units</label>
             <input
               type="number"
+              min="1"
               value={params.units || 128}
-              onChange={(e) => handleParamChange('units', parseInt(e.target.value))}
+              onChange={(e) => {
+                const value = parseInt(e.target.value);
+                if (!isNaN(value) && value > 0) {
+                  handleParamChange('units', value);
+                }
+              }}
               className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
             />
           </div>
@@ -109,8 +130,14 @@ export default function PropertiesPanel() {
               <label className="block text-sm font-medium text-gray-300 mb-1">Filters</label>
               <input
                 type="number"
+                min="1"
                 value={params.filters || 32}
-                onChange={(e) => handleParamChange('filters', parseInt(e.target.value))}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  if (!isNaN(value) && value > 0) {
+                    handleParamChange('filters', value);
+                  }
+                }}
                 className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
               />
             </div>
@@ -118,10 +145,16 @@ export default function PropertiesPanel() {
               <label className="block text-sm font-medium text-gray-300 mb-1">Kernel Size</label>
               <input
                 type="number"
+                min="1"
                 value={
                   Array.isArray(params.kernelSize) ? params.kernelSize[0] : params.kernelSize || 3
                 }
-                onChange={(e) => handleParamChange('kernelSize', parseInt(e.target.value))}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  if (!isNaN(value) && value > 0) {
+                    handleParamChange('kernelSize', value);
+                  }
+                }}
                 className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
               />
             </div>
@@ -144,10 +177,16 @@ export default function PropertiesPanel() {
             <label className="block text-sm font-medium text-gray-300 mb-1">Pool Size</label>
             <input
               type="number"
+              min="1"
               value={
                 Array.isArray(params.poolSize) ? params.poolSize[0] : params.poolSize || 2
               }
-              onChange={(e) => handleParamChange('poolSize', parseInt(e.target.value))}
+              onChange={(e) => {
+                const value = parseInt(e.target.value);
+                if (!isNaN(value) && value > 0) {
+                  handleParamChange('poolSize', value);
+                }
+              }}
               className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
             />
           </div>
@@ -162,7 +201,12 @@ export default function PropertiesPanel() {
               min="0"
               max="1"
               value={params.rate || 0.5}
-              onChange={(e) => handleParamChange('rate', parseFloat(e.target.value))}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value);
+                if (!isNaN(value) && value >= 0 && value <= 1) {
+                  handleParamChange('rate', value);
+                }
+              }}
               className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
             />
           </div>
@@ -178,7 +222,12 @@ export default function PropertiesPanel() {
                 min="0"
                 max="1"
                 value={params.momentum || 0.99}
-                onChange={(e) => handleParamChange('momentum', parseFloat(e.target.value))}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  if (!isNaN(value) && value >= 0 && value <= 1) {
+                    handleParamChange('momentum', value);
+                  }
+                }}
                 className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
               />
             </div>
@@ -189,7 +238,12 @@ export default function PropertiesPanel() {
                 step="0.0001"
                 min="0"
                 value={params.epsilon || 0.001}
-                onChange={(e) => handleParamChange('epsilon', parseFloat(e.target.value))}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  if (!isNaN(value) && value >= 0) {
+                    handleParamChange('epsilon', value);
+                  }
+                }}
                 className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
               />
             </div>
@@ -211,6 +265,42 @@ export default function PropertiesPanel() {
               ))}
             </select>
           </div>
+        )}
+
+        {layerType === 'Output' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Units (Classes)</label>
+              <input
+                type="number"
+                min="1"
+                value={params.units || 10}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  if (!isNaN(value) && value > 0) {
+                    handleParamChange('units', value);
+                  }
+                }}
+                className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">Number of output classes</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Activation</label>
+              <select
+                value={params.activation || 'softmax'}
+                onChange={(e) => handleParamChange('activation', e.target.value)}
+                className="w-full px-3 py-2 bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
+              >
+                {activationOptions.map((act) => (
+                  <option key={act} value={act}>
+                    {act}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">Typically softmax for classification, linear for regression</p>
+            </div>
+          </>
         )}
       </div>
     </div>

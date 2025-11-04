@@ -71,6 +71,10 @@ export default function LayerPalette() {
       case 'Input':
         defaultParams.inputShape = [28, 28, 1];
         break;
+      case 'Output':
+        defaultParams.units = 10;
+        defaultParams.activation = 'softmax';
+        break;
     }
 
     addNode({

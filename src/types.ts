@@ -142,6 +142,8 @@ export type MetricType =
 
 export interface TrainingMetrics {
     epoch: number;
+    batch?: number;
+    totalBatches?: number;
     loss: number;
     valLoss?: number;
     metrics: { [key: string]: number };
@@ -182,7 +184,8 @@ export type MessageToWebview =
     | { type: 'trainingStopped' }
     | { type: 'trainingCompleted' }
     | { type: 'trainingError'; error: string }
-    | { type: 'loadBlocks'; blocks: BlockDefinition[] };
+    | { type: 'loadBlocks'; blocks: BlockDefinition[] }
+    | { type: 'datasetPathSelected'; path: string };
 
 export type MessageFromWebview =
     | { type: 'saveModel'; data: ModelArchitecture }
@@ -191,4 +194,5 @@ export type MessageFromWebview =
     | { type: 'exportModel'; format: 'pytorch' | 'onnx' }
     | { type: 'saveBlock'; block: BlockDefinition }
     | { type: 'loadBlocks' }
-    | { type: 'ready' };
+    | { type: 'ready' }
+    | { type: 'pickDatasetFile' };
