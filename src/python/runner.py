@@ -414,6 +414,8 @@ def train(run_path):
     # Initialize lazy modules with a dummy forward pass
     # Get input shape from the Input layer
     input_node = next((n for n in architecture['nodes'] if n['data']['layerType'] == 'Input'), None)
+    model_initialized = False
+
     if input_node:
         input_shape = input_node['data']['params'].get('inputShape', [28, 28, 1])
         # Convert HWC to NCHW format for PyTorch (batch_size=1, channels, height, width)
@@ -430,11 +432,26 @@ def train(run_path):
         with torch.no_grad():
             try:
                 _ = model(dummy_input)
+                model_initialized = True
+                print("Model initialized successfully with dummy input")
             except Exception as e:
                 print(f"Warning: Could not initialize model with dummy input: {e}")
+                import traceback
+                traceback.print_exc()
 
-    # Validate model has trainable layers
-    num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    # Validate model has trainable layers (only if initialized)
+    if model_initialized:
+        num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    else:
+        # Try to count initialized parameters only
+        num_params = 0
+        for p in model.parameters():
+            if p.requires_grad:
+                try:
+                    num_params += p.numel()
+                except:
+                    # Skip uninitialized parameters
+                    pass
     if num_params == 0:
         raise ValueError(
             "❌ Model has no trainable layers!\n\n"
