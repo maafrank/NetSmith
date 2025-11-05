@@ -14,6 +14,29 @@ It provides:
 
 All training runs execute on your local hardware using your configured Python interpreter.
 
+## Getting Started
+
+### Launch NetSmith
+
+1. **Open the Command Palette**: Press `Cmd+Shift+P` (Mac) or `Ctrl+Shift+P` (Windows/Linux)
+2. **Search for**: `NetSmith: New Model`
+3. **Press Enter** to open the visual model builder
+
+You can also access NetSmith commands from:
+- The **Command Palette** (`Cmd/Ctrl+Shift+P`) - Search "NetSmith"
+- The **NetSmith sidebar icon** in the Activity Bar (left side of VS Code)
+
+### Your First Model
+
+1. **Add layers**: Click layers in the left palette (they auto-connect)
+2. **Configure**: Click any layer to edit its properties in the right panel
+3. **Auto-arrange**: Click 🔄 to organize your network
+4. **Set up training**: Click ⚙️ to configure dataset, epochs, and hyperparameters
+5. **Run**: Click ▶️ to start training
+6. **Watch**: View real-time metrics and loss curves
+
+---
+
 ## Installation
 
 ### From VS Code Marketplace (Recommended)
