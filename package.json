@@ -2,7 +2,7 @@
   "name": "netsmith",
   "displayName": "NetSmith",
   "description": "Visual Neural Network Designer for VS Code",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "MatthewFrank",
   "icon": "media/icon.png",
   "engines": {
