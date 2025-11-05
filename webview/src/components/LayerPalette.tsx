@@ -15,6 +15,8 @@ const layerCategories = {
   'Pooling': [
     { type: 'MaxPool2D' as LayerType, icon: '⬇️', description: 'Max pooling 2D' },
     { type: 'AvgPool2D' as LayerType, icon: '📉', description: 'Average pooling 2D' },
+    { type: 'GlobalAvgPool2D' as LayerType, icon: '🌐', description: 'Global average pooling' },
+    { type: 'GlobalMaxPool2D' as LayerType, icon: '🔝', description: 'Global max pooling' },
   ],
   'Regularization': [
     { type: 'Dropout' as LayerType, icon: '🎲', description: 'Dropout' },
@@ -25,9 +27,40 @@ const layerCategories = {
   ],
   'Utility': [
     { type: 'Flatten' as LayerType, icon: '📄', description: 'Flatten' },
+    { type: 'Reshape' as LayerType, icon: '🔄', description: 'Reshape' },
+    { type: 'UpSampling2D' as LayerType, icon: '⬆️', description: 'Upsample 2D' },
   ],
-  'Blocks': [
-    { type: 'Block' as LayerType, icon: '🧱', description: 'Skip connection block', blockType: 'SkipConnection' },
+  'Merge Layers': [
+    { type: 'Concat' as LayerType, icon: '➕', description: 'Concatenate' },
+    { type: 'Multiply' as LayerType, icon: '✖️', description: 'Element-wise multiply' },
+    { type: 'Subtract' as LayerType, icon: '➖', description: 'Element-wise subtract' },
+    { type: 'Maximum' as LayerType, icon: '🔼', description: 'Element-wise maximum' },
+    { type: 'Minimum' as LayerType, icon: '🔽', description: 'Element-wise minimum' },
+  ],
+  'Blocks - Basic': [
+    { type: 'Block' as LayerType, icon: '🔷', description: 'Conv-BN-ReLU', blockType: 'ConvBNRelu' },
+    { type: 'Block' as LayerType, icon: '🔄', description: 'Skip connection (ResNet)', blockType: 'SkipConnection' },
+  ],
+  'Blocks - Advanced': [
+    { type: 'Block' as LayerType, icon: '🏺', description: 'Bottleneck (ResNet-50+)', blockType: 'Bottleneck' },
+    { type: 'Block' as LayerType, icon: '📱', description: 'Depthwise separable', blockType: 'DepthwiseSeparable' },
+    { type: 'Block' as LayerType, icon: '🔃', description: 'Inverted residual (MobileNetV2)', blockType: 'InvertedResidual' },
+    { type: 'Block' as LayerType, icon: '🔥', description: 'Fire module (SqueezeNet)', blockType: 'Fire' },
+    { type: 'Block' as LayerType, icon: '🎯', description: 'Squeeze-Excitation', blockType: 'SE' },
+    { type: 'Block' as LayerType, icon: '🌲', description: 'Dense block (DenseNet)', blockType: 'Dense' },
+    { type: 'Block' as LayerType, icon: '💎', description: 'Inception module', blockType: 'Inception' },
+    { type: 'Block' as LayerType, icon: '🔬', description: 'SE-ResNet block', blockType: 'SEResNet' },
+  ],
+  'Blocks - U-Net': [
+    { type: 'Block' as LayerType, icon: '⬇️', description: 'U-Net encoder', blockType: 'UNetEncoder' },
+    { type: 'Block' as LayerType, icon: '⬆️', description: 'U-Net decoder', blockType: 'UNetDecoder' },
+    { type: 'Block' as LayerType, icon: '🎯', description: 'Attention gate', blockType: 'AttentionGate' },
+  ],
+  'Blocks - Attention': [
+    { type: 'Block' as LayerType, icon: '👁️', description: 'Self-attention', blockType: 'Attention' },
+    { type: 'Block' as LayerType, icon: '🤖', description: 'Transformer (basic)', blockType: 'Transformer' },
+    { type: 'Block' as LayerType, icon: '📥', description: 'Transformer encoder', blockType: 'TransformerEncoder' },
+    { type: 'Block' as LayerType, icon: '📤', description: 'Transformer decoder', blockType: 'TransformerDecoder' },
   ],
 };
 
@@ -36,10 +69,47 @@ export default function LayerPalette() {
 
   const handleAddLayer = (layerType: LayerType, blockType?: string) => {
     const nodeId = `${layerType.toLowerCase()}_${Date.now()}`;
-    const position = {
+    const basePosition = {
       x: Math.random() * 500 + 100,
       y: Math.random() * 500 + 100,
     };
+
+    // Handle blocks by generating all internal nodes directly
+    if (layerType === 'Block' && blockType) {
+      const template = getBlockTemplate(blockType as any, nodeId);
+      if (template) {
+        // Add all internal nodes with absolute positions
+        const firstNodeId = template.internalNodes[0]?.id;
+        const addNodeId = template.internalNodes.find(n => n.data.layerType === 'Add')?.id;
+
+        template.internalNodes.forEach((internalNode) => {
+          addNode({
+            ...internalNode,
+            position: {
+              x: basePosition.x + internalNode.position.x,
+              y: basePosition.y + internalNode.position.y,
+            },
+          });
+        });
+
+        // Add all internal edges AND skip connection
+        const { setEdges } = useStore.getState();
+        const currentEdges = useStore.getState().edges;
+        const newEdges = [...currentEdges, ...template.internalEdges];
+
+        // Add skip connection (from first node to Add node)
+        if (firstNodeId && addNodeId) {
+          newEdges.push({
+            id: `${nodeId}_skip`,
+            source: firstNodeId,
+            target: addNodeId,
+          });
+        }
+
+        setEdges(newEdges);
+      }
+      return; // Don't add a container node
+    }
 
     const defaultParams: any = {};
 
@@ -79,27 +149,32 @@ export default function LayerPalette() {
         defaultParams.units = 10;
         defaultParams.activation = 'softmax';
         break;
-      case 'Block':
-        if (blockType) {
-          const template = getBlockTemplate(blockType as any, nodeId);
-          if (template) {
-            defaultParams.blockType = blockType;
-            defaultParams.internalNodes = template.internalNodes;
-            defaultParams.internalEdges = template.internalEdges;
-            defaultParams.expanded = false;
-            // Copy template default params
-            Object.assign(defaultParams, template.defaultParams);
-          }
-        }
+      case 'Concat':
+        defaultParams.axis = -1;
+        break;
+      case 'Reshape':
+        defaultParams.targetShape = [1, -1];
+        break;
+      case 'UpSampling2D':
+        defaultParams.size = 2;
+        defaultParams.interpolation = 'nearest';
+        break;
+      case 'Multiply':
+      case 'Subtract':
+      case 'Maximum':
+      case 'Minimum':
+      case 'GlobalAvgPool2D':
+      case 'GlobalMaxPool2D':
+        // No default params needed
         break;
     }
 
     addNode({
       id: nodeId,
       type: layerType,
-      position,
+      position: basePosition,
       data: {
-        label: layerType === 'Block' ? (blockType || 'Block') : layerType,
+        label: layerType,
         layerType,
         params: defaultParams,
       },

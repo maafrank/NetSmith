@@ -230,15 +230,34 @@ Types are defined in **two locations**:
 ## Layer System
 
 Supported layer types (in `LayerType` union):
-- Input, Dense, Conv2D, Conv1D
-- MaxPool2D, AvgPool2D, Flatten
-- Dropout, BatchNorm, Activation, Output
-- Block (for reusable modules - future feature)
+- **Basic**: Input, Output
+- **Dense**: Dense
+- **Convolutional**: Conv2D, Conv1D
+- **Pooling**: MaxPool2D, AvgPool2D, GlobalAvgPool2D, GlobalMaxPool2D
+- **Normalization**: BatchNorm
+- **Regularization**: Dropout
+- **Activation**: Activation (relu, sigmoid, tanh, softmax, leaky_relu, elu, selu, gelu, swish, linear)
+- **Utility**: Flatten, Reshape, UpSampling2D
+- **Merge**: Add, Concat, Multiply, Subtract, Maximum, Minimum (for skip connections and multi-input layers)
+- **Blocks**: Block (for reusable modules with internal architecture)
 
 Each layer has:
 - Visual node representation (`webview/src/components/nodes/index.tsx`)
 - Parameter schema in `LayerParams` interface
 - Python mapping in `DynamicModel._create_layer()`
+
+### Merge Layers and Skip Connections
+
+Merge layers (Add, Concat, etc.) require **two inputs** and are handled specially in the forward pass:
+```python
+# In runner.py forward() method
+if layer_type in merge_layers and len(input_nodes) >= 2:
+    input1 = outputs.get(input_nodes[0], x)  # Main path
+    input2 = outputs.get(input_nodes[1], x)  # Skip connection
+    x = layer(input1, input2)
+```
+
+The `AddLayer` class automatically handles dimension mismatches using 1x1 convolution projections for skip connections.
 
 ## Common Patterns
 

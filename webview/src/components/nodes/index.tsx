@@ -1,7 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { LayerNode } from '../../types';
-import BlockNode from './BlockNode';
 
 const BaseNode = ({ data, selected }: NodeProps<LayerNode['data']>) => {
   const getNodeColor = (layerType: string) => {
@@ -17,6 +16,8 @@ const BaseNode = ({ data, selected }: NodeProps<LayerNode['data']>) => {
         return 'bg-purple-600';
       case 'MaxPool2D':
       case 'AvgPool2D':
+      case 'GlobalAvgPool2D':
+      case 'GlobalMaxPool2D':
         return 'bg-indigo-600';
       case 'Activation':
         return 'bg-yellow-600';
@@ -25,8 +26,15 @@ const BaseNode = ({ data, selected }: NodeProps<LayerNode['data']>) => {
       case 'BatchNorm':
         return 'bg-pink-600';
       case 'Flatten':
+      case 'Reshape':
+      case 'UpSampling2D':
         return 'bg-teal-600';
       case 'Add':
+      case 'Concat':
+      case 'Multiply':
+      case 'Subtract':
+      case 'Maximum':
+      case 'Minimum':
         return 'bg-emerald-600';
       default:
         return 'bg-gray-600';
@@ -87,11 +95,19 @@ export const nodeTypes = {
   Conv1D: memo(BaseNode),
   MaxPool2D: memo(BaseNode),
   AvgPool2D: memo(BaseNode),
+  GlobalAvgPool2D: memo(BaseNode),
+  GlobalMaxPool2D: memo(BaseNode),
   Flatten: memo(BaseNode),
+  Reshape: memo(BaseNode),
+  UpSampling2D: memo(BaseNode),
   Dropout: memo(BaseNode),
   BatchNorm: memo(BaseNode),
   Activation: memo(BaseNode),
   Output: memo(BaseNode),
   Add: memo(BaseNode),
-  Block: BlockNode,
+  Concat: memo(BaseNode),
+  Multiply: memo(BaseNode),
+  Subtract: memo(BaseNode),
+  Maximum: memo(BaseNode),
+  Minimum: memo(BaseNode),
 };

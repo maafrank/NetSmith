@@ -15,10 +15,102 @@ from torch.utils.data import DataLoader, Dataset, random_split
 import time
 
 
-class AddLayer(nn.Module):
-    """Layer that performs element-wise addition of two inputs (for skip connections)"""
+class MergeLayer(nn.Module):
+    """Base class for merge layers that combine two inputs"""
+
+    def __init__(self, operation='add'):
+        super().__init__()
+        self.operation = operation
+        self.projection = None
+
+    def _maybe_project(self, x1, x2):
+        """Project x2 to match x1's dimensions if needed"""
+        if x1.shape != x2.shape:
+            if self.projection is None:
+                if len(x1.shape) == 4:  # Conv layers
+                    self.projection = nn.Conv2d(
+                        x2.shape[1], x1.shape[1],
+                        kernel_size=1, stride=1, padding=0
+                    ).to(x1.device)
+                elif len(x1.shape) == 2:  # Dense layers
+                    self.projection = nn.Linear(
+                        x2.shape[1], x1.shape[1]
+                    ).to(x1.device)
+
+            if self.projection is not None:
+                x2 = self.projection(x2)
+
+        return x2
 
     def forward(self, x1, x2):
+        x2 = self._maybe_project(x1, x2)
+
+        if self.operation == 'add':
+            return x1 + x2
+        elif self.operation == 'multiply':
+            return x1 * x2
+        elif self.operation == 'subtract':
+            return x1 - x2
+        elif self.operation == 'maximum':
+            return torch.maximum(x1, x2)
+        elif self.operation == 'minimum':
+            return torch.minimum(x1, x2)
+        else:
+            return x1 + x2
+
+class ConcatLayer(nn.Module):
+    """Layer that concatenates two inputs along specified axis"""
+
+    def __init__(self, axis=-1):
+        super().__init__()
+        self.axis = axis
+
+    def forward(self, x1, x2):
+        return torch.cat([x1, x2], dim=self.axis)
+
+class AddLayer(nn.Module):
+    """Layer that performs element-wise addition of two inputs (for skip connections)
+
+    Automatically handles dimension mismatches by using a 1x1 convolution projection
+    on the skip connection if needed.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.projection = None
+
+    def forward(self, x1, x2):
+        # x1 is the main path (from previous layer in sequence)
+        # x2 is the skip connection (from earlier in the network)
+
+        # If shapes don't match, create projection layer on first forward pass
+        if x1.shape != x2.shape:
+            if self.projection is None:
+                # Need to project x2 to match x1's dimensions
+                # Handle both 2D (batch, channels) and 4D (batch, channels, height, width)
+                if len(x1.shape) == 4:  # Conv layers
+                    # Use 1x1 convolution to change channel dimension
+                    self.projection = nn.Conv2d(
+                        x2.shape[1],  # in_channels
+                        x1.shape[1],  # out_channels
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=False
+                    ).to(x1.device)
+                elif len(x1.shape) == 2:  # Dense layers
+                    # Use linear projection
+                    self.projection = nn.Linear(
+                        x2.shape[1],
+                        x1.shape[1],
+                        bias=False
+                    ).to(x1.device)
+                else:
+                    raise ValueError(f"Unsupported tensor shapes for skip connection: {x1.shape} and {x2.shape}")
+
+            # Apply projection to skip connection
+            x2 = self.projection(x2)
+
         return x1 + x2
 
 
@@ -135,6 +227,38 @@ class DynamicModel(nn.Module):
         elif layer_type == 'Add':
             return AddLayer()
 
+        elif layer_type == 'Concat':
+            axis = params.get('axis', -1)
+            return ConcatLayer(axis)
+
+        elif layer_type == 'Multiply':
+            return MergeLayer('multiply')
+
+        elif layer_type == 'Subtract':
+            return MergeLayer('subtract')
+
+        elif layer_type == 'Maximum':
+            return MergeLayer('maximum')
+
+        elif layer_type == 'Minimum':
+            return MergeLayer('minimum')
+
+        elif layer_type == 'GlobalAvgPool2D':
+            return nn.AdaptiveAvgPool2d((1, 1))
+
+        elif layer_type == 'GlobalMaxPool2D':
+            return nn.AdaptiveMaxPool2d((1, 1))
+
+        elif layer_type == 'Reshape':
+            # Note: Reshape is handled dynamically in forward pass
+            target_shape = params.get('targetShape', [-1])
+            return nn.Identity()  # Placeholder, actual reshaping in forward
+
+        elif layer_type == 'UpSampling2D':
+            size = params.get('size', 2)
+            mode = params.get('interpolation', 'nearest')
+            return nn.Upsample(scale_factor=size, mode=mode)
+
         return None
 
     def _get_activation(self, activation_type):
@@ -197,9 +321,11 @@ class DynamicModel(nn.Module):
             # Get inputs for this node
             input_nodes = self.node_inputs.get(layer_id, [])
 
-            if layer_type == 'Add' and len(input_nodes) >= 2:
-                # Add layer needs two inputs
-                # First input is the main path (sequential), second is the skip connection
+            # Check if this is a merge layer that needs two inputs
+            merge_layers = ['Add', 'Concat', 'Multiply', 'Subtract', 'Maximum', 'Minimum']
+            if layer_type in merge_layers and len(input_nodes) >= 2:
+                # Merge layer needs two inputs
+                # First input is the main path (sequential), second is the other input
                 input1 = outputs.get(input_nodes[0], x)
                 input2 = outputs.get(input_nodes[1], x)
                 x = layer(input1, input2)

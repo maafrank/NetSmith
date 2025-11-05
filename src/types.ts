@@ -20,12 +20,21 @@ export type LayerType =
     | 'Conv1D'
     | 'MaxPool2D'
     | 'AvgPool2D'
+    | 'GlobalAvgPool2D'
+    | 'GlobalMaxPool2D'
     | 'Flatten'
     | 'Dropout'
     | 'BatchNorm'
     | 'Activation'
     | 'Output'
     | 'Add'
+    | 'Concat'
+    | 'Multiply'
+    | 'Subtract'
+    | 'Maximum'
+    | 'Minimum'
+    | 'Reshape'
+    | 'UpSampling2D'
     | 'Block';
 
 export interface LayerParams {
