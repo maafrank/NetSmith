@@ -13,7 +13,7 @@ export default function MetricsPanel() {
   const currentMetrics = trainingMetrics[trainingMetrics.length - 1];
 
   return (
-    <div className="absolute bottom-4 left-4 bg-gray-900 bg-opacity-95 rounded-lg shadow-lg p-4 w-[500px]">
+    <div className="absolute bottom-4 right-4 bg-gray-900 bg-opacity-95 rounded-lg shadow-lg p-4 w-[500px]">
       <div className="flex justify-between items-center mb-3">
         <h3 className="font-bold text-white">Training Metrics</h3>
         <button

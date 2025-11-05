@@ -14,6 +14,9 @@ It provides:
 
 All training runs execute on your local hardware using your configured Python interpreter.
 
+![NetSmith Interface](media/example.png)
+*Visual neural network design with real-time training metrics*
+
 ## Getting Started
 
 ### Launch NetSmith

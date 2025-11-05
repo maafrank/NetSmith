@@ -163,6 +163,13 @@ Key: Edge syncing only happens when edge count changes to prevent "undo" behavio
 
 ## Key Components
 
+### Activity Bar Integration
+NetSmith appears in the VS Code Activity Bar (left sidebar) with a custom "N" logo:
+- **Icon**: `media/activity-bar-icon.svg` - Monochrome SVG that adapts to VS Code theme
+- **Welcome View**: Displays when sidebar is clicked, showing "New Model" and "Open Project" buttons
+- **Configuration**: Defined in `package.json` under `viewsContainers.activitybar` and `viewsWelcome`
+- Logo design: "N" shape with neural network nodes at corners (top-left, bottom-left, top-right, bottom-right)
+
 ### ModelBuilderPanel (`src/webview/ModelBuilderPanel.ts`)
 - Singleton webview panel manager
 - Handles all message passing between extension and React UI
@@ -337,6 +344,19 @@ The `publish.sh` script:
 2. Builds extension and webview
 3. Packages into `.vsix`
 4. Publishes to VS Code Marketplace
+
+### Critical .vscodeignore Configuration
+The `.vscodeignore` file must be carefully configured to include Python files while excluding source TypeScript:
+```
+src/**/*.ts       # Exclude TypeScript source
+src/**/*.map      # Exclude source maps
+!src/python/**    # IMPORTANT: Include Python training scripts
+TEMP/**           # Exclude temporary test files
+*.npz             # Exclude dataset files
+.netsmith/**      # Exclude workspace-specific project data
+```
+
+**Critical**: The `!src/python/**` exception is essential - without it, training won't work because `runner.py` and `onnx_exporter.py` won't be packaged.
 
 ### Marketplace Information
 - **Publisher ID**: MatthewFrank

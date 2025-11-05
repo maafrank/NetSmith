@@ -2,7 +2,7 @@
   "name": "netsmith",
   "displayName": "NetSmith",
   "description": "Visual Neural Network Designer for VS Code",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "publisher": "MatthewFrank",
   "icon": "media/icon.png",
   "engines": {
@@ -65,7 +65,7 @@
       "activitybar": [
         {
           "id": "netsmith",
-          "title": "NetSmith",
+          "title": "NetSmith - Click to create new model",
           "icon": "media/activity-bar-icon.svg"
         }
       ]
@@ -73,21 +73,17 @@
     "views": {
       "netsmith": [
         {
-          "id": "netsmith.quickActions",
-          "name": "Quick Actions"
+          "id": "netsmith.welcome",
+          "name": "NetSmith"
         }
       ]
     },
-    "menus": {
-      "view/title": [
-        {
-          "command": "netsmith.newModel",
-          "when": "view == netsmith.quickActions",
-          "group": "navigation"
-        }
-      ],
-      "view/item/context": []
-    }
+    "viewsWelcome": [
+      {
+        "view": "netsmith.welcome",
+        "contents": "Click below to create a new neural network model.\n[$(add) New Model](command:netsmith.newModel)\n\nOr initialize NetSmith in your workspace.\n[$(folder-opened) Open Project](command:netsmith.openProject)"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run build",
