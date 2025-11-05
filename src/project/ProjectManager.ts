@@ -69,12 +69,15 @@ export class ProjectManager {
             await this.initializeProject(workspaceUri);
         }
 
-        const modelPath = path.join(
+        // Ensure models directory exists (defensive)
+        const modelsDir = path.join(
             workspaceUri.fsPath,
             ProjectManager.PROJECT_FOLDER,
-            'models',
-            `${modelId}.json`
+            'models'
         );
+        await fs.mkdir(modelsDir, { recursive: true });
+
+        const modelPath = path.join(modelsDir, `${modelId}.json`);
 
         await fs.writeFile(modelPath, JSON.stringify(architecture, null, 2));
 
@@ -109,8 +112,9 @@ export class ProjectManager {
     }
 
     async createRun(workspaceUri: vscode.Uri, modelId: string, runName: string): Promise<string> {
+        // Auto-initialize project if not already initialized
         if (!this.config) {
-            throw new Error('Project not initialized');
+            await this.initializeProject(workspaceUri);
         }
 
         const runId = `run_${Date.now()}`;
@@ -132,8 +136,8 @@ export class ProjectManager {
             createdAt: new Date().toISOString()
         };
 
-        this.config.runs.push(runRef);
-        await this.saveConfig(workspaceUri, this.config);
+        this.config!.runs.push(runRef);
+        await this.saveConfig(workspaceUri, this.config!);
 
         return runId;
     }
