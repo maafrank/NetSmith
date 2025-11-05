@@ -202,15 +202,17 @@ export type MessageToWebview =
     | { type: 'trainingError'; error: string }
     | { type: 'loadBlocks'; blocks: BlockDefinition[] }
     | { type: 'datasetPathSelected'; path: string }
-    | { type: 'availableDatasets'; datasets: string[] };
+    | { type: 'availableDatasets'; datasets: string[] }
+    | { type: 'availableRuns'; runs: string[] };
 
 export type MessageFromWebview =
     | { type: 'saveModel'; data: ModelArchitecture; modelName?: string }
     | { type: 'runModel'; config: TrainingConfig; architecture: ModelArchitecture }
     | { type: 'stopTraining' }
-    | { type: 'exportModel'; format: 'pytorch' | 'onnx' }
+    | { type: 'exportModel'; format: 'pytorch' | 'onnx'; data: ModelArchitecture; selectedRun?: string }
     | { type: 'saveBlock'; block: BlockDefinition }
     | { type: 'loadBlocks' }
     | { type: 'ready' }
     | { type: 'pickDatasetFile' }
-    | { type: 'scanForDatasets' };
+    | { type: 'scanForDatasets' }
+    | { type: 'requestAvailableRuns' };

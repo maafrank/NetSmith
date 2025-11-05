@@ -11,7 +11,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Command: New Model
     const newModelCommand = vscode.commands.registerCommand('netsmith.newModel', async () => {
-        ModelBuilderPanel.createOrShow(context.extensionUri, projectManager, trainingManager);
+        ModelBuilderPanel.createOrShow(context.extensionUri, projectManager, trainingManager, context);
     });
 
     // Command: Open Project

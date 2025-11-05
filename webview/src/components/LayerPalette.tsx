@@ -31,7 +31,8 @@ const layerCategories = {
     { type: 'UpSampling2D' as LayerType, icon: '⬆️', description: 'Upsample 2D' },
   ],
   'Merge Layers': [
-    { type: 'Concat' as LayerType, icon: '➕', description: 'Concatenate' },
+    { type: 'Add' as LayerType, icon: '➕', description: 'Element-wise add' },
+    { type: 'Concat' as LayerType, icon: '🔗', description: 'Concatenate' },
     { type: 'Multiply' as LayerType, icon: '✖️', description: 'Element-wise multiply' },
     { type: 'Subtract' as LayerType, icon: '➖', description: 'Element-wise subtract' },
     { type: 'Maximum' as LayerType, icon: '🔼', description: 'Element-wise maximum' },
@@ -159,6 +160,7 @@ export default function LayerPalette() {
         defaultParams.size = 2;
         defaultParams.interpolation = 'nearest';
         break;
+      case 'Add':
       case 'Multiply':
       case 'Subtract':
       case 'Maximum':

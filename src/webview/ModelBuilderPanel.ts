@@ -1,7 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs/promises';
 import { ProjectManager } from '../project/ProjectManager';
 import { TrainingManager } from '../training/TrainingManager';
+import { PythonExporter } from '../export/pythonExporter';
+import { ONNXExporter } from '../export/onnxExporter';
 import { MessageFromWebview, MessageToWebview, ModelArchitecture, TrainingConfig } from '../types';
 
 export class ModelBuilderPanel {
@@ -9,14 +12,17 @@ export class ModelBuilderPanel {
     private readonly _panel: vscode.WebviewPanel;
     private _disposables: vscode.Disposable[] = [];
     private currentModelId: string = `model_${Date.now()}`;
+    private onnxExporter: ONNXExporter;
 
     private constructor(
         panel: vscode.WebviewPanel,
         extensionUri: vscode.Uri,
         private projectManager: ProjectManager,
-        private trainingManager: TrainingManager
+        private trainingManager: TrainingManager,
+        private context: vscode.ExtensionContext
     ) {
         this._panel = panel;
+        this.onnxExporter = new ONNXExporter(context);
 
         this._panel.webview.html = this._getHtmlForWebview(this._panel.webview, extensionUri);
 
@@ -34,7 +40,8 @@ export class ModelBuilderPanel {
     public static createOrShow(
         extensionUri: vscode.Uri,
         projectManager: ProjectManager,
-        trainingManager: TrainingManager
+        trainingManager: TrainingManager,
+        context: vscode.ExtensionContext
     ) {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
@@ -63,7 +70,8 @@ export class ModelBuilderPanel {
             panel,
             extensionUri,
             projectManager,
-            trainingManager
+            trainingManager,
+            context
         );
     }
 
@@ -98,7 +106,11 @@ export class ModelBuilderPanel {
                 break;
 
             case 'exportModel':
-                await this._exportModel(message.format, workspaceFolder.uri);
+                await this._exportModel(message.format, workspaceFolder.uri, message.data, message.selectedRun);
+                break;
+
+            case 'requestAvailableRuns':
+                await this._sendAvailableRuns(workspaceFolder.uri);
                 break;
 
             case 'saveBlock':
@@ -277,10 +289,123 @@ export class ModelBuilderPanel {
         }
     }
 
-    private async _exportModel(format: 'pytorch' | 'onnx', workspaceUri: vscode.Uri) {
-        // Request current architecture from webview
-        // For now, this is a placeholder
-        vscode.window.showInformationMessage('Export functionality coming soon');
+    private async _exportModel(format: 'pytorch' | 'onnx', workspaceUri: vscode.Uri, architecture?: ModelArchitecture, selectedRun?: string) {
+        if (!architecture) {
+            vscode.window.showErrorMessage('No architecture data provided for export');
+            return;
+        }
+
+        try {
+            if (format === 'pytorch') {
+                await this._exportPyTorch(workspaceUri, architecture);
+            } else if (format === 'onnx') {
+                await this._exportONNX(workspaceUri, selectedRun);
+            }
+        } catch (error) {
+            console.error('Export error:', error);
+            vscode.window.showErrorMessage(`Failed to export model: ${error}`);
+        }
+    }
+
+    private async _exportPyTorch(workspaceUri: vscode.Uri, architecture: ModelArchitecture) {
+        // Generate Python code
+        const exporter = new PythonExporter(architecture.nodes, architecture.edges);
+        const pythonCode = exporter.generate();
+
+        // Prompt for filename
+        const defaultFilename = `exported_model_${Date.now()}.py`;
+        const fileUri = await vscode.window.showSaveDialog({
+            defaultUri: vscode.Uri.joinPath(workspaceUri, defaultFilename),
+            filters: {
+                'Python Files': ['py']
+            },
+            saveLabel: 'Export Model'
+        });
+
+        if (!fileUri) {
+            // User cancelled
+            return;
+        }
+
+        // Write file
+        await fs.writeFile(fileUri.fsPath, pythonCode, 'utf-8');
+
+        vscode.window.showInformationMessage(`Model exported to ${path.basename(fileUri.fsPath)}`);
+    }
+
+    private async _sendAvailableRuns(workspaceUri: vscode.Uri) {
+        const netsmithPath = path.join(workspaceUri.fsPath, '.netsmith', 'runs');
+
+        try {
+            await fs.access(netsmithPath);
+        } catch {
+            this._sendMessage({ type: 'availableRuns', runs: [] });
+            return;
+        }
+
+        // List available runs
+        const runs = await fs.readdir(netsmithPath);
+        if (runs.length === 0) {
+            this._sendMessage({ type: 'availableRuns', runs: [] });
+            return;
+        }
+
+        // Filter runs that have weights
+        const runsWithWeights: string[] = [];
+        for (const run of runs) {
+            const runPath = path.join(netsmithPath, run);
+            if (await this.onnxExporter.hasTrainedWeights(runPath)) {
+                runsWithWeights.push(run);
+            }
+        }
+
+        this._sendMessage({ type: 'availableRuns', runs: runsWithWeights });
+    }
+
+    private async _exportONNX(workspaceUri: vscode.Uri, selectedRun?: string) {
+        if (!selectedRun) {
+            vscode.window.showErrorMessage('No model selected for export');
+            return;
+        }
+
+        const netsmithPath = path.join(workspaceUri.fsPath, '.netsmith', 'runs');
+        const runPath = path.join(netsmithPath, selectedRun);
+
+        // Prompt for output filename
+        const defaultFilename = `${selectedRun}.onnx`;
+        const fileUri = await vscode.window.showSaveDialog({
+            defaultUri: vscode.Uri.joinPath(workspaceUri, defaultFilename),
+            filters: {
+                'ONNX Files': ['onnx']
+            },
+            saveLabel: 'Export to ONNX'
+        });
+
+        if (!fileUri) {
+            return;
+        }
+
+        // Show progress
+        await vscode.window.withProgress(
+            {
+                location: vscode.ProgressLocation.Notification,
+                title: 'Exporting model to ONNX...',
+                cancellable: false
+            },
+            async (progress) => {
+                progress.report({ increment: 0 });
+
+                try {
+                    await this.onnxExporter.export(runPath, fileUri.fsPath);
+                    progress.report({ increment: 100 });
+                    vscode.window.showInformationMessage(
+                        `Model exported to ${path.basename(fileUri.fsPath)}`
+                    );
+                } catch (error) {
+                    throw error;
+                }
+            }
+        );
     }
 
     private _sendMessage(message: MessageToWebview) {

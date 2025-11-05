@@ -15,6 +15,12 @@ interface TrainingPanelProps {
 export default function TrainingPanel({ onBeforeRun, nodes, edges }: TrainingPanelProps) {
   const { isTraining, trainingConfig, setTrainingConfig, clearMetrics, showTrainingConfig, setShowTrainingConfig } = useStore();
   const [availableDatasets, setAvailableDatasets] = useState<string[]>([]);
+  const [showSaveInput, setShowSaveInput] = useState(false);
+  const [modelName, setModelName] = useState('my-model');
+  const [showExportOptions, setShowExportOptions] = useState(false);
+  const [showModelSelection, setShowModelSelection] = useState(false);
+  const [availableRuns, setAvailableRuns] = useState<string[]>([]);
+  const [selectedRun, setSelectedRun] = useState<string>('');
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -22,6 +28,13 @@ export default function TrainingPanel({ onBeforeRun, nodes, edges }: TrainingPan
       const message = event.data;
       if (message.type === 'availableDatasets') {
         setAvailableDatasets(message.datasets);
+      } else if (message.type === 'availableRuns') {
+        setAvailableRuns(message.runs);
+        if (message.runs.length > 0) {
+          setShowModelSelection(true);
+        } else {
+          alert('No trained models found. Please complete training first.');
+        }
       }
     };
     window.addEventListener('message', handleMessage);
@@ -73,19 +86,82 @@ export default function TrainingPanel({ onBeforeRun, nodes, edges }: TrainingPan
   };
 
   const handleSaveModel = () => {
+    setShowSaveInput(true);
+  };
+
+  const handleConfirmSave = () => {
+    if (!modelName.trim()) {
+      alert('Model name cannot be empty');
+      return;
+    }
+    if (/[<>:"/\\|?*]/.test(modelName)) {
+      alert('Model name contains invalid characters');
+      return;
+    }
+
     onBeforeRun(); // Sync state before saving
     vscode.postMessage({
       type: 'saveModel',
       data: { nodes, edges, blocks: [] },
+      modelName: modelName.trim(),
     });
+    setShowSaveInput(false);
+  };
+
+  const handleCancelSave = () => {
+    setShowSaveInput(false);
+    setModelName('my-model');
   };
 
   const handleExport = () => {
-    onBeforeRun(); // Sync state before exporting
+    if (nodes.length === 0) {
+      alert('Please add layers to your model first');
+      return;
+    }
+    setShowExportOptions(true);
+  };
+
+  const handleExportFormat = (format: 'pytorch' | 'onnx') => {
+    if (format === 'pytorch') {
+      // PyTorch export doesn't need model selection
+      onBeforeRun();
+      vscode.postMessage({
+        type: 'exportModel',
+        format: 'pytorch',
+        data: { nodes, edges, blocks: [] },
+      });
+      setShowExportOptions(false);
+    } else if (format === 'onnx') {
+      // ONNX needs model selection, request available runs
+      setShowExportOptions(false);
+      vscode.postMessage({ type: 'requestAvailableRuns' });
+    }
+  };
+
+  const handleCancelExport = () => {
+    setShowExportOptions(false);
+  };
+
+  const handleConfirmOnnxExport = () => {
+    if (!selectedRun) {
+      alert('Please select a trained model');
+      return;
+    }
+
+    onBeforeRun();
     vscode.postMessage({
       type: 'exportModel',
-      format: 'pytorch',
+      format: 'onnx',
+      data: { nodes, edges, blocks: [] },
+      selectedRun: selectedRun,
     });
+    setShowModelSelection(false);
+    setSelectedRun('');
+  };
+
+  const handleCancelModelSelection = () => {
+    setShowModelSelection(false);
+    setSelectedRun('');
   };
 
   const handlePickDataset = () => {
@@ -133,6 +209,104 @@ export default function TrainingPanel({ onBeforeRun, nodes, edges }: TrainingPan
           📤 Export
         </button>
       </div>
+
+      {showSaveInput && (
+        <div className="mt-2 p-3 bg-gray-900 rounded-lg border border-blue-500">
+          <label className="block text-xs font-medium text-gray-300 mb-2">
+            Model Name
+          </label>
+          <input
+            type="text"
+            value={modelName}
+            onChange={(e) => setModelName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleConfirmSave();
+              if (e.key === 'Escape') handleCancelSave();
+            }}
+            placeholder="my-model"
+            autoFocus
+            className="w-full px-2 py-1 text-sm bg-gray-800 text-white rounded border border-gray-700 focus:border-blue-500 focus:outline-none mb-2"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleConfirmSave}
+              className="flex-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded"
+            >
+              ✓ Save
+            </button>
+            <button
+              onClick={handleCancelSave}
+              className="flex-1 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded"
+            >
+              ✕ Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showExportOptions && (
+        <div className="mt-2 p-3 bg-gray-900 rounded-lg border border-purple-500">
+          <label className="block text-xs font-medium text-gray-300 mb-2">
+            Export Format
+          </label>
+          <div className="space-y-2">
+            <button
+              onClick={() => handleExportFormat('pytorch')}
+              className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded text-left"
+            >
+              <div className="font-medium">🐍 PyTorch (.py)</div>
+              <div className="text-xs text-gray-300 mt-0.5">Standalone Python script</div>
+            </button>
+            <button
+              onClick={() => handleExportFormat('onnx')}
+              className="w-full px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded text-left"
+            >
+              <div className="font-medium">🔄 ONNX (.onnx)</div>
+              <div className="text-xs text-gray-300 mt-0.5">Cross-framework format (requires trained weights)</div>
+            </button>
+          </div>
+          <button
+            onClick={handleCancelExport}
+            className="w-full mt-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded"
+          >
+            ✕ Cancel
+          </button>
+        </div>
+      )}
+
+      {showModelSelection && (
+        <div className="mt-2 p-3 bg-gray-900 rounded-lg border border-purple-500">
+          <label className="block text-xs font-medium text-gray-300 mb-2">
+            Select Trained Model
+          </label>
+          <select
+            value={selectedRun}
+            onChange={(e) => setSelectedRun(e.target.value)}
+            className="w-full px-2 py-1 text-sm bg-gray-800 text-white rounded border border-gray-700 focus:border-purple-500 focus:outline-none mb-2"
+          >
+            <option value="">Choose a model...</option>
+            {availableRuns.map((run) => (
+              <option key={run} value={run}>
+                {run}
+              </option>
+            ))}
+          </select>
+          <div className="flex gap-2">
+            <button
+              onClick={handleConfirmOnnxExport}
+              className="flex-1 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded"
+            >
+              ✓ Export ONNX
+            </button>
+            <button
+              onClick={handleCancelModelSelection}
+              className="flex-1 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded"
+            >
+              ✕ Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {showTrainingConfig && (
         <div className="mt-4 p-4 bg-gray-900 rounded-lg max-h-[400px] overflow-y-auto">

@@ -173,6 +173,53 @@ Key: Edge syncing only happens when edge count changes to prevent "undo" behavio
 - Captures stderr in a buffer to provide detailed error messages on failure
 - Integrates with Python extension API to get active interpreter
 - Implements topological sort for layer ordering
+- Flattens Block nodes before training using `blockFlattener.ts`
+
+### Block Flattener (`src/training/blockFlattener.ts`)
+- Recursively flattens Block nodes into their constituent layers before training
+- Handles edge rewiring to connect blocks properly:
+  - Block → Block: connects last internal node of source to first of target
+  - Block → Layer: uses last internal node as source
+  - Layer → Block: uses first internal node as target, adds skip connection if Add layer present
+- Validates flattened architecture has Input/Output layers and trainable layers
+
+### Block Templates (`webview/src/blockTemplates.ts`)
+- Provides pre-built architectural patterns as reusable blocks
+- Available templates include:
+  - **ResNet-style**: SkipConnection, Bottleneck, SEResNet
+  - **Mobile**: DepthwiseSeparable, InvertedResidual
+  - **Inception/SqueezeNet**: Fire, Inception
+  - **DenseNet**: Dense (with dense connectivity)
+  - **U-Net**: UNetEncoder, UNetDecoder, AttentionGate
+  - **Transformers**: Attention, Transformer, TransformerEncoder, TransformerDecoder
+  - **Basic**: ConvBNRelu, SE (Squeeze-Excitation)
+- Each template function takes a `blockId` (for uniqueness) and optional `params`
+- Returns `{ internalNodes, internalEdges, defaultParams }` structure
+- Internal node IDs are prefixed with blockId to ensure uniqueness when multiple blocks are used
+
+### Export System
+
+NetSmith supports two export formats accessible via the 📤 Export button:
+
+**PyTorch Export** (`src/export/pythonExporter.ts`):
+- Generates standalone Python script with PyTorch model class
+- Uses lazy modules (`LazyLinear`, `LazyConv2d`) for automatic shape inference
+- Handles all layer types, skip connections, and merge layers
+- Includes usage example in generated code
+- Can be exported at any time (doesn't require trained weights)
+
+**ONNX Export** (`src/export/onnxExporter.ts` + `src/python/onnx_exporter.py`):
+- Exports trained models to ONNX format for cross-framework compatibility
+- Requires completed training run with `weights.pt` file
+- User selects which trained run to export via QuickPick
+- Uses Python subprocess to load model + weights and export via `torch.onnx.export()`
+- Shows progress notification during export
+- Supports dynamic batch size in ONNX graph
+
+Export UI pattern in TrainingPanel:
+- Click Export → Shows format selection modal
+- PyTorch: Opens save dialog → Writes .py file
+- ONNX: Lists available trained runs → Select run → Save dialog → Exports .onnx file
 
 ### Python Runner (`src/python/runner.py`)
 - `DynamicModel` class builds PyTorch `nn.Module` from JSON
@@ -307,7 +354,7 @@ const defaultEdgeOptions = {
 };
 
 // Auto-Layout using Dagre (top-to-bottom)
-dagreGraph.setGraph({ rankdir: 'TB', nodesep: 100, ranksep: 150 });
+dagreGraph.setGraph({ rankdir: 'TB', nodesep: 10, ranksep: 20 });
 ```
 
 ### Batch Progress Display
@@ -371,3 +418,12 @@ The loader automatically:
 - Normalizes pixel values (0-255 → 0-1)
 - Adds channel dimension (28×28 → 1×28×28)
 - Converts to PyTorch format (NHWC → NCHW)
+
+## Development Workflow
+
+When developing NetSmith:
+- Always run `npm run dev` for parallel watch mode (both extension and webview)
+- Press F5 in VS Code to launch Extension Development Host
+- Changes to extension code require reloading the Extension Development Host window
+- Changes to webview code hot-reload automatically when using watch mode
+- Test with MNIST NPZ datasets placed in workspace root or subdirectories
