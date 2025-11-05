@@ -2,12 +2,17 @@ import * as vscode from 'vscode';
 import { ModelBuilderPanel } from './webview/ModelBuilderPanel';
 import { ProjectManager } from './project/ProjectManager';
 import { TrainingManager } from './training/TrainingManager';
+import { QuickActionsProvider } from './sidebar/QuickActionsProvider';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('NetSmith extension activated');
 
     const projectManager = new ProjectManager(context);
     const trainingManager = new TrainingManager(context);
+
+    // Register sidebar tree view
+    const quickActionsProvider = new QuickActionsProvider();
+    vscode.window.registerTreeDataProvider('netsmith.quickActions', quickActionsProvider);
 
     // Command: New Model
     const newModelCommand = vscode.commands.registerCommand('netsmith.newModel', async () => {

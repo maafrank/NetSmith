@@ -18,13 +18,14 @@ All training runs execute on your local hardware using your configured Python in
 
 ### Launch NetSmith
 
-1. **Open the Command Palette**: Press `Cmd+Shift+P` (Mac) or `Ctrl+Shift+P` (Windows/Linux)
-2. **Search for**: `NetSmith: New Model`
-3. **Press Enter** to open the visual model builder
+**Option 1: Sidebar (Recommended)**
+1. Click the **NetSmith icon** in the Activity Bar (left sidebar)
+2. Click **"New Model"** in the Quick Actions panel
 
-You can also access NetSmith commands from:
-- The **Command Palette** (`Cmd/Ctrl+Shift+P`) - Search "NetSmith"
-- The **NetSmith sidebar icon** in the Activity Bar (left side of VS Code)
+**Option 2: Command Palette**
+1. Press `Cmd+Shift+P` (Mac) or `Ctrl+Shift+P` (Windows/Linux)
+2. Search for: `NetSmith: New Model`
+3. Press Enter
 
 ### Your First Model
 

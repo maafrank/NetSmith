@@ -1,0 +1,18 @@
+<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <!-- "N" shape with neural network nodes at pivot points -->
+
+  <!-- Left vertical line (top to bottom) -->
+  <line x1="6" y1="4" x2="6" y2="20" stroke="currentColor" stroke-width="2"/>
+
+  <!-- Diagonal line (top-left to bottom-right) - flipped -->
+  <line x1="6" y1="4" x2="18" y2="20" stroke="currentColor" stroke-width="2"/>
+
+  <!-- Right vertical line (top to bottom) -->
+  <line x1="18" y1="4" x2="18" y2="20" stroke="currentColor" stroke-width="2"/>
+
+  <!-- Nodes at pivot points -->
+  <circle cx="6" cy="4" r="2.5" fill="currentColor"/>   <!-- Top-left -->
+  <circle cx="6" cy="20" r="2.5" fill="currentColor"/>  <!-- Bottom-left -->
+  <circle cx="18" cy="4" r="2.5" fill="currentColor"/>  <!-- Top-right -->
+  <circle cx="18" cy="20" r="2.5" fill="currentColor"/> <!-- Bottom-right -->
+</svg>
