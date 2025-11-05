@@ -1,5 +1,8 @@
 # NetSmith — Visual Neural Network Designer for VS Code
 
+[![VS Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/MatthewFrank.netsmith)](https://marketplace.visualstudio.com/items?itemName=MatthewFrank.netsmith)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/MatthewFrank.netsmith)](https://marketplace.visualstudio.com/items?itemName=MatthewFrank.netsmith)
+
 ## Overview
 **NetSmith** is a VS Code extension for **visually designing, configuring, and training neural networks locally**.
 It provides:
@@ -10,6 +13,23 @@ It provides:
 - Integrated **project and run management**
 
 All training runs execute on your local hardware using your configured Python interpreter.
+
+## Installation
+
+### From VS Code Marketplace (Recommended)
+1. Open VS Code
+2. Press `Cmd/Ctrl+Shift+X` to open Extensions
+3. Search for **"NetSmith"**
+4. Click **Install**
+
+Or install directly from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=MatthewFrank.netsmith).
+
+### Prerequisites
+- **Python 3.10+** with PyTorch 2.0+ and NumPy installed:
+  ```bash
+  pip install torch numpy
+  ```
+- A Python interpreter configured in VS Code
 
 ---
 
@@ -187,18 +207,22 @@ React Flow is the source of truth for node positions. The Zustand store is only 
 
 ---
 
-## Development Setup
+## Contributing & Development
 
-### Prerequisites
+Contributions are welcome! See our [GitHub repository](https://github.com/maafrank/NetSmith) for issues and pull requests.
+
+### Development Setup
+
+#### Prerequisites
 - **Node.js 18+** and npm
 - **Python 3.10+** with PyTorch 2.0+
 - **VS Code** (latest stable version)
 
-### Installation
+#### Installation
 
 ```bash
 # 1. Clone and navigate
-git clone <repo-url>
+git clone https://github.com/maafrank/NetSmith.git
 cd NetSmith
 
 # 2. Install extension dependencies
@@ -326,5 +350,17 @@ np.savez('mnist.npz',
 ```
 
 Place `mnist.npz` in your workspace and it will appear in the dataset dropdown.
+
+---
+
+## Support & Feedback
+
+- **Issues**: [GitHub Issues](https://github.com/maafrank/NetSmith/issues)
+- **Marketplace**: [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=MatthewFrank.netsmith)
+- **Repository**: [GitHub Repository](https://github.com/maafrank/NetSmith)
+
+## License
+
+See [LICENSE.txt](LICENSE.txt) for details.
 
 ---

@@ -3,7 +3,8 @@
   "displayName": "NetSmith",
   "description": "Visual Neural Network Designer for VS Code",
   "version": "0.1.0",
-  "publisher": "netsmith",
+  "publisher": "MatthewFrank",
+  "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -12,6 +13,24 @@
     "Visualization",
     "Other"
   ],
+  "keywords": [
+    "neural network",
+    "machine learning",
+    "pytorch",
+    "deep learning",
+    "ai",
+    "visual designer",
+    "neural network builder",
+    "model training"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maafrank/NetSmith"
+  },
+  "bugs": {
+    "url": "https://github.com/maafrank/NetSmith/issues"
+  },
+  "homepage": "https://github.com/maafrank/NetSmith#readme",
   "activationEvents": [
     "onCommand:netsmith.newModel",
     "onCommand:netsmith.openProject",
@@ -61,7 +80,9 @@
     "watch:webview": "cd webview && npm run dev",
     "dev": "concurrently \"npm run watch\" \"npm run watch:webview\"",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "./publish.sh"
   },
   "devDependencies": {
     "@types/node": "^20.x",

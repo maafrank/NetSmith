@@ -25,6 +25,10 @@ npm run dev                    # Run both watches in parallel
 
 # Running the extension
 # Press F5 in VS Code to launch Extension Development Host
+
+# Publishing
+npm run package                # Package into .vsix (local testing)
+npm run publish                # Build and publish to VS Code Marketplace
 ```
 
 ## Architecture
@@ -305,6 +309,49 @@ if layer_type in merge_layers and len(input_nodes) >= 2:
 ```
 
 The `AddLayer` class automatically handles dimension mismatches using 1x1 convolution projections for skip connections.
+
+## Publishing
+
+### Security Setup
+The extension uses environment variables to securely store the VS Code Marketplace Personal Access Token:
+- `.env` - Contains the actual PAT token (gitignored and vscodeignored)
+- `.env.example` - Template for contributors (committed to repo)
+- `publish.sh` - Automated build and publish script
+
+**Important files to keep secure:**
+- `.env` is in `.gitignore` (won't be committed)
+- `.env` is in `.vscodeignore` (won't be packaged in .vsix)
+- Only `.env.example` template is included in the package
+
+### Publishing Process
+```bash
+# Package extension locally (creates .vsix file)
+npm run package
+
+# Build and publish to marketplace (automated)
+npm run publish
+```
+
+The `publish.sh` script:
+1. Loads PAT token from `.env` file
+2. Builds extension and webview
+3. Packages into `.vsix`
+4. Publishes to VS Code Marketplace
+
+### Marketplace Information
+- **Publisher ID**: MatthewFrank
+- **Extension ID**: MatthewFrank.netsmith
+- **Marketplace URL**: https://marketplace.visualstudio.com/items?itemName=MatthewFrank.netsmith
+- **Management Hub**: https://marketplace.visualstudio.com/manage/publishers/MatthewFrank
+- **GitHub Repo**: https://github.com/maafrank/NetSmith
+
+### Getting a Personal Access Token (PAT)
+1. Go to https://dev.azure.com/_usersSettings/tokens
+2. Click "+ New Token"
+3. Name: "VS Code Publishing"
+4. Organization: "All accessible organizations"
+5. Scopes: Check "Marketplace (Manage)"
+6. Copy token to `.env` as `VSCE_PAT=your-token-here`
 
 ## Common Patterns
 

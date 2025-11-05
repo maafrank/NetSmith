@@ -11,3 +11,9 @@ tsconfig.json
 !dist/**/*.d.ts
 node_modules
 *.vsix
+.env
+.env.*
+!.env.example
+publish.sh
+CLAUDE.md
+.claude/**
